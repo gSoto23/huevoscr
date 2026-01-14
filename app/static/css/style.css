@@ -1,0 +1,39 @@
+:root {
+    --color-black: #000000;
+    --color-white: #FFFFFF;
+    --color-red: #C84327;
+    --color-yellow: #E2C341;
+    --font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; /* Placeholder for rounded/simple font */
+}
+
+body {
+    background-color: var(--color-white);
+    color: var(--color-black);
+    font-family: var(--font-family);
+    margin: 0;
+    padding: 0;
+}
+
+h1, h2, h3, h4, h5, h6 {
+    font-weight: 700;
+}
+
+.btn-primary {
+    background-color: var(--color-red);
+    color: var(--color-white);
+    border: none;
+    padding: 10px 20px;
+    border-radius: 20px;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+.btn-secondary {
+    background-color: var(--color-yellow);
+    color: var(--color-black);
+    border: none;
+    padding: 10px 20px;
+    border-radius: 20px;
+    cursor: pointer;
+    font-weight: bold;
+}
