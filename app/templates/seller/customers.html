@@ -18,14 +18,21 @@
         <table id="customerTable">
             <thead>
                 <tr>
-                    <th>WhatsApp / ID</th>
-                    <th>Nombre</th>
-                    <th>Email</th>
-                    <th>Dirección</th>
+                    <th style="cursor:pointer" onclick="sortTable('whatsapp_id')">WhatsApp / ID <i
+                            class="fa-solid fa-sort"></i></th>
+                    <th style="cursor:pointer" onclick="sortTable('name')">Nombre <i class="fa-solid fa-sort"></i></th>
+                    <th style="cursor:pointer" onclick="sortTable('email')">Email <i class="fa-solid fa-sort"></i></th>
+                    <th style="cursor:pointer" onclick="sortTable('address')">Dirección <i class="fa-solid fa-sort"></i>
+                    </th>
                     <th>Ubicación</th>
-                    <th>Forma de Pago</th>
-                    <th>Cantidad</th>
-                    <th>Día</th>
+                    <th style="cursor:pointer" onclick="sortTable('payment_method')">Forma de Pago <i
+                            class="fa-solid fa-sort"></i></th>
+                    <th style="cursor:pointer" onclick="sortTable('cartons_qty')">Cantidad <i
+                            class="fa-solid fa-sort"></i></th>
+                    <th style="cursor:pointer" onclick="sortTable('periodicity')">Día <i class="fa-solid fa-sort"></i>
+                    </th>
+                    <th style="cursor:pointer" onclick="sortTable('is_active')">Estado <i class="fa-solid fa-sort"></i>
+                    </th>
                 </tr>
             </thead>
             <tbody>
@@ -34,81 +41,76 @@
         </table>
     </div>
 </div>
-
-<!-- Create Modal -->
-<div id="createModal" class="hidden"
-    style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:200;">
-    <div class="card"
-        style="width: 90%; max-width: 500px; margin: 50px auto; padding: 20px; max-height: 90vh; overflow-y: auto;">
-        <h3>Agregar Nuevo Cliente</h3>
-        <p style="font-size: 0.9rem; color: #666;">Se asignará automáticamente a tu ruta.</p>
-
-        <form id="createForm">
-            <div class="form-group">
-                <label>WhatsApp (ID) *</label>
-                <input type="text" name="whatsapp_id" required pattern="\d{8}" maxlength="8" minlength="8"
-                    placeholder="88888888">
-            </div>
-            <div class="form-group">
-                <label>Nombre Completo *</label>
-                <input type="text" name="name" required>
-            </div>
-            <div class="form-group">
-                <label>Dirección *</label>
-                <textarea name="address" required></textarea>
-            </div>
-            <div class="form-row">
-                <div class="form-group">
-                    <label>Cantidad *</label>
-                    <input type="number" name="cartons_qty" value="1" min="1" required>
-                </div>
-                <div class="form-group">
-                    <label>Periodicidad *</label>
-                    <select name="periodicity" required>
-                        <option value="Semanal">Semanal</option>
-                        <option value="Mensual">Mensual</option>
-                    </select>
-                </div>
-            </div>
-            <div class="form-row">
-                <div class="form-group">
-                    <label>Forma de Pago *</label>
-                    <select name="payment_method" required>
-                        <option value="Sinpe">Sinpe</option>
-                        <option value="Efectivo">Efectivo</option>
-                        <option value="Transferencia">Transferencia</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label>Email (Opcional)</label>
-                    <input type="email" name="email">
-                </div>
-            </div>
-            <div class="form-group">
-                <label>Link Ubicación (Opcional)</label>
-                <input type="text" name="location_pin" placeholder="https://maps...">
-            </div>
-
-            <div style="display:flex; justify-content: flex-end; gap: 10px; margin-top: 20px;">
-                <button type="button" class="btn-secondary" onclick="closeCreateModal()">Cancelar</button>
-                <button type="submit" class="btn-primary">Guardar</button>
-            </div>
-        </form>
-    </div>
-</div>
+<!-- ... create modal ... -->
 {% endblock %}
 
 {% block scripts %}
 <script>
     let allCustomers = [];
+    let currentSort = { column: null, direction: 'asc' };
 
     async function loadCustomers() {
         try {
             const res = await fetch('/customers/', { headers: authHeaders() });
             allCustomers = await res.json();
-            renderTable(allCustomers);
-        } catch (e) {
-            console.error(e);
+            applyFilterAndSort();
+        } catch (e) { console.error(e); }
+    }
+
+    function sortTable(column) {
+        if (currentSort.column === column) {
+            currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
+        } else {
+            currentSort.column = column;
+            currentSort.direction = 'asc';
+        }
+        applyFilterAndSort();
+    }
+
+    function applyFilterAndSort() {
+        const term = document.getElementById('searchInput').value.toLowerCase();
+
+        let filtered = allCustomers.filter(c =>
+            c.name.toLowerCase().includes(term) ||
+            c.whatsapp_id.includes(term) ||
+            c.address.toLowerCase().includes(term)
+        );
+
+        if (currentSort.column) {
+            filtered.sort((a, b) => {
+                let valA = getColumnValue(a, currentSort.column);
+                let valB = getColumnValue(b, currentSort.column);
+                if (valA < valB) return currentSort.direction === 'asc' ? -1 : 1;
+                if (valA > valB) return currentSort.direction === 'asc' ? 1 : -1;
+                return 0;
+            });
+        }
+
+        updateSortIcons();
+        renderTable(filtered);
+    }
+
+    function getColumnValue(obj, column) {
+        if (column === 'is_active') return obj.is_active ? 1 : 0;
+        let val = obj[column];
+        if (typeof val === 'string') return val.toLowerCase();
+        return val || '';
+    }
+
+    function updateSortIcons() {
+        document.querySelectorAll('th i').forEach(icon => {
+            icon.className = 'fa-solid fa-sort';
+            icon.style.opacity = '0.3';
+        });
+        if (currentSort.column) {
+            const th = document.querySelector(`th[onclick="sortTable('${currentSort.column}')"]`);
+            if (th) {
+                const icon = th.querySelector('i');
+                if (icon) {
+                    icon.className = currentSort.direction === 'asc' ? 'fa-solid fa-sort-up' : 'fa-solid fa-sort-down';
+                    icon.style.opacity = '1';
+                }
+            }
         }
     }
 
@@ -126,6 +128,28 @@
                                 </a>`;
             }
 
+            // Toggle Switch UI
+            let dateText = '';
+            if (c.status_changed_at) {
+                const date = new Date(c.status_changed_at);
+                dateText = `<div style="font-size: 0.7rem; color: #888; margin-top:2px;">${date.toLocaleString()}</div>`;
+            }
+
+            const toggleHtml = `
+                <div style="display:flex; align-items:center; gap:8px;" title="${c.status_changed_at ? 'Modificado: ' + c.status_changed_at : ''}">
+                    <label class="switch" style="margin-bottom:0;">
+                        <input type="checkbox" ${c.is_active ? 'checked' : ''} onchange="toggleStatus('${c.whatsapp_id}', this.checked)">
+                        <span class="slider round"></span>
+                    </label>
+                    <div style="line-height: 1;">
+                        <div id="status-text-${c.whatsapp_id}" style="font-size: 0.85rem; font-weight:600; color: ${c.is_active ? 'green' : '#666'}">
+                             ${c.is_active ? 'Activo' : 'Inactivo'}
+                        </div>
+                        ${dateText}
+                    </div>
+                </div>
+            `;
+
             tr.innerHTML = `
                 <td>${c.whatsapp_id}</td>
                 <td>${c.name}</td>
@@ -135,20 +159,42 @@
                 <td>${c.payment_method}</td>
                 <td>${c.cartons_qty}</td>
                 <td>${c.periodicity}</td>
+                <td>${toggleHtml}</td>
             `;
             tbody.appendChild(tr);
         });
     }
 
-    document.getElementById('searchInput').addEventListener('keyup', (e) => {
-        const term = e.target.value.toLowerCase();
-        const filtered = allCustomers.filter(c =>
-            c.name.toLowerCase().includes(term) ||
-            c.whatsapp_id.includes(term) ||
-            c.address.toLowerCase().includes(term)
-        );
-        renderTable(filtered);
-    });
+    async function toggleStatus(waId, isActive) {
+        try {
+            const res = await fetch(`/customers/${waId}`, {
+                method: 'PUT',
+                headers: {
+                    ...authHeaders(),
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ is_active: isActive })
+            });
+            if (res.ok) {
+                // Success, update UI
+                loadCustomers();
+            } else {
+                alert('Error al actualizar estado');
+                // Revert checkbox if failed
+                loadCustomers();
+            }
+        } catch (e) {
+            console.error(e);
+            loadCustomers(); // Revert
+        }
+    }
+
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput) {
+        searchInput.addEventListener('keyup', (e) => {
+            applyFilterAndSort();
+        });
+    }
 
     function openCreateModal() {
         document.getElementById('createModal').style.display = 'block';
@@ -159,45 +205,48 @@
         document.getElementById('createForm').reset();
     }
 
-    document.getElementById('createForm').addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const formData = new FormData(e.target);
-        const data = Object.fromEntries(formData.entries());
+    const createForm = document.getElementById('createForm');
+    if (createForm) {
+        createForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const data = Object.fromEntries(formData.entries());
 
-        // Validate 8 digits
-        if (!/^\d{8}$/.test(data.whatsapp_id)) {
-            alert('El WhatsApp debe tener 8 dígitos');
-            return;
-        }
-
-        // Cleanup empty optionals
-        if (!data.email) delete data.email;
-        if (!data.location_pin) delete data.location_pin;
-        data.cartons_qty = parseInt(data.cartons_qty);
-
-        try {
-            const res = await fetch('/customers/', {
-                method: 'POST',
-                headers: {
-                    ...authHeaders(),
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(data)
-            });
-
-            if (res.ok) {
-                closeCreateModal();
-                loadCustomers();
-                alert('Cliente creado exitosamente');
-            } else {
-                const err = await res.json();
-                alert('Error: ' + (err.detail || 'No se pudo crear'));
+            // Validate 8 digits
+            if (!/^\d{8}$/.test(data.whatsapp_id)) {
+                alert('El WhatsApp debe tener 8 dígitos');
+                return;
             }
-        } catch (e) {
-            console.error(e);
-            alert('Error de conexión');
-        }
-    });
+
+            // Cleanup empty optionals
+            if (!data.email) delete data.email;
+            if (!data.location_pin) delete data.location_pin;
+            data.cartons_qty = parseInt(data.cartons_qty);
+
+            try {
+                const res = await fetch('/customers/', {
+                    method: 'POST',
+                    headers: {
+                        ...authHeaders(),
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                });
+
+                if (res.ok) {
+                    closeCreateModal();
+                    loadCustomers();
+                    alert('Cliente creado exitosamente');
+                } else {
+                    const err = await res.json();
+                    alert('Error: ' + (err.detail || 'No se pudo crear'));
+                }
+            } catch (e) {
+                console.error(e);
+                alert('Error de conexión');
+            }
+        });
+    }
 
     loadCustomers();
 </script>

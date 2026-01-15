@@ -31,11 +31,21 @@ class CustomerBase(BaseModel):
 class CustomerCreate(CustomerBase):
     pass
 
-class CustomerUpdate(CustomerBase):
-    pass
+class CustomerUpdate(BaseModel):
+    whatsapp_id: Optional[str] = None
+    name: Optional[str] = None
+    email: Optional[EmailStr] = None
+    address: Optional[str] = None
+    location_pin: Optional[str] = None
+    cartons_qty: Optional[int] = None
+    periodicity: Optional[str] = None
+    payment_method: Optional[str] = None
+    seller_id: Optional[int] = None
+    is_active: Optional[bool] = None
 
 class Customer(CustomerBase):
     is_active: bool
+    status_changed_at: Optional[datetime] = None
     seller_id: Optional[int] = None
     seller: Optional[User] = None
 

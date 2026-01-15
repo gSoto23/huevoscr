@@ -15,15 +15,23 @@
         <table id="customerTable">
             <thead>
                 <tr>
-                    <th>WhatsApp / ID</th>
-                    <th>Nombre</th>
-                    <th>Email</th>
-                    <th>Dirección</th>
+                    <th style="cursor:pointer" onclick="sortTable('whatsapp_id')">WhatsApp / ID <i
+                            class="fa-solid fa-sort"></i></th>
+                    <th style="cursor:pointer" onclick="sortTable('name')">Nombre <i class="fa-solid fa-sort"></i></th>
+                    <th style="cursor:pointer" onclick="sortTable('email')">Email <i class="fa-solid fa-sort"></i></th>
+                    <th style="cursor:pointer" onclick="sortTable('address')">Dirección <i class="fa-solid fa-sort"></i>
+                    </th>
                     <th>Ubicación</th>
-                    <th>Forma de Pago</th>
-                    <th>Cantidad</th>
-                    <th>Día</th>
-                    <th>Vendedor</th>
+                    <th style="cursor:pointer" onclick="sortTable('payment_method')">Forma de Pago <i
+                            class="fa-solid fa-sort"></i></th>
+                    <th style="cursor:pointer" onclick="sortTable('cartons_qty')">Cantidad <i
+                            class="fa-solid fa-sort"></i></th>
+                    <th style="cursor:pointer" onclick="sortTable('periodicity')">Día <i class="fa-solid fa-sort"></i>
+                    </th>
+                    <th style="cursor:pointer" onclick="sortTable('seller')">Vendedor <i class="fa-solid fa-sort"></i>
+                    </th>
+                    <th style="cursor:pointer" onclick="sortTable('is_active')">Estado <i class="fa-solid fa-sort"></i>
+                    </th>
                     <th>Acciones</th>
                 </tr>
             </thead>
@@ -33,46 +41,95 @@
         </table>
     </div>
 </div>
-<!-- Modal for Editing/Assignments -->
-<div id="editModal"
-    style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:200;">
-    <div class="card" style="width: 400px; margin: 100px auto; padding: 20px;">
-        <h3>Asignar Vendedor</h3>
-        <form id="editForm">
-            <input type="hidden" id="editWaId" name="whatsapp_id">
-            <div class="form-group">
-                <label>Seleccionar Vendedor</label>
-                <select id="editSeller" name="seller_id" required>
-                    <option value="">Cargando...</option>
-                </select>
-            </div>
-            <div style="display:flex; justify-content: flex-end; gap: 10px;">
-                <button type="button" class="btn-secondary" onclick="closeModal()">Cancelar</button>
-                <button type="submit" class="btn-primary">Asignar</button>
-            </div>
-        </form>
-    </div>
-</div>
-
+<!-- ... modal ... -->
 {% endblock %}
 
 {% block scripts %}
 <script>
     let allCustomers = [];
+    let currentSort = { column: null, direction: 'asc' };
 
     async function loadCustomers() {
         try {
             const res = await fetch('/customers/', { headers: authHeaders() });
             allCustomers = await res.json();
-            renderTable(allCustomers);
+            applyFilterAndSort(); // Use central function
         } catch (e) { console.error(e); }
     }
+
+    function sortTable(column) {
+        if (currentSort.column === column) {
+            currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
+        } else {
+            currentSort.column = column;
+            currentSort.direction = 'asc';
+        }
+        applyFilterAndSort();
+    }
+
+    function applyFilterAndSort() {
+        const term = document.getElementById('searchInput').value.toLowerCase();
+
+        // 1. Filter
+        let filtered = allCustomers.filter(c =>
+            c.name.toLowerCase().includes(term) ||
+            c.whatsapp_id.includes(term) ||
+            c.address.toLowerCase().includes(term) ||
+            (c.email && c.email.toLowerCase().includes(term))
+        );
+
+        // 2. Sort
+        if (currentSort.column) {
+            filtered.sort((a, b) => {
+                let valA = getColumnValue(a, currentSort.column);
+                let valB = getColumnValue(b, currentSort.column);
+
+                if (valA < valB) return currentSort.direction === 'asc' ? -1 : 1;
+                if (valA > valB) return currentSort.direction === 'asc' ? 1 : -1;
+                return 0;
+            });
+        }
+
+        updateSortIcons();
+        renderTable(filtered);
+    }
+
+    function getColumnValue(obj, column) {
+        if (column === 'seller') return obj.seller ? obj.seller.username.toLowerCase() : '';
+        if (column === 'is_active') return obj.is_active ? 1 : 0;
+        let val = obj[column];
+        if (typeof val === 'string') return val.toLowerCase();
+        return val || '';
+    }
+
+    function updateSortIcons() {
+        document.querySelectorAll('th i').forEach(icon => {
+            icon.className = 'fa-solid fa-sort'; // Reset
+            icon.style.opacity = '0.3';
+        });
+        if (currentSort.column) {
+            // Find the header (simple generic selection based on onclick arg would be complex, 
+            // so we'll just query by the onclick attribute containing the column name)
+            const th = document.querySelector(`th[onclick="sortTable('${currentSort.column}')"]`);
+            if (th) {
+                const icon = th.querySelector('i');
+                if (icon) {
+                    icon.className = currentSort.direction === 'asc' ? 'fa-solid fa-sort-up' : 'fa-solid fa-sort-down';
+                    icon.style.opacity = '1';
+                }
+            }
+        }
+    }
+
+    // ... renderTable ...
+
 
     function renderTable(customers) {
         const tbody = document.querySelector('#customerTable tbody');
         tbody.innerHTML = '';
         customers.forEach(c => {
             const tr = document.createElement('tr');
+            tr.style.opacity = c.is_active ? '1' : '0.6';
 
             // Format Location Link
             let locationHtml = '-';
@@ -81,6 +138,28 @@
                                     <i class="fa-solid fa-map-location-dot"></i> Ver
                                 </a>`;
             }
+
+            // Toggle Switch UI
+            let dateText = '';
+            if (c.status_changed_at) {
+                const date = new Date(c.status_changed_at);
+                dateText = `<div style="font-size: 0.7rem; color: #888; margin-top:2px;">${date.toLocaleString()}</div>`;
+            }
+
+            const toggleHtml = `
+                <div style="display:flex; align-items:center; gap:8px;" title="${c.status_changed_at ? 'Modificado: ' + c.status_changed_at : ''}">
+                    <label class="switch" style="margin-bottom:0;">
+                        <input type="checkbox" ${c.is_active ? 'checked' : ''} onchange="toggleStatus('${c.whatsapp_id}', this.checked)">
+                        <span class="slider round"></span>
+                    </label>
+                    <div style="line-height: 1;">
+                        <div id="status-text-${c.whatsapp_id}" style="font-size: 0.85rem; font-weight:600; color: ${c.is_active ? 'green' : '#666'}">
+                             ${c.is_active ? 'Activo' : 'Inactivo'}
+                        </div>
+                        ${dateText}
+                    </div>
+                </div>
+            `;
 
             tr.innerHTML = `
                 <td>${c.whatsapp_id}</td>
@@ -92,24 +171,50 @@
                 <td>${c.cartons_qty}</td>
                 <td>${c.periodicity}</td>
                 <td>${c.seller ? c.seller.username : '<span style="color:#999">Sin asignar</span>'}</td>
+                <td>${toggleHtml}</td>
                 <td>
-                    <button onclick="openEditModal('${c.whatsapp_id}', '${c.seller_id || ''}')" class="btn-secondary" style="padding: 5px 10px; font-size: 0.8rem;">Asignar</button>
+                    <button 
+                        onclick="openEditModal('${c.whatsapp_id}', '${c.seller_id || ''}')" 
+                        class="btn-secondary" 
+                        style="padding: 5px 10px; font-size: 0.8rem; ${!c.is_active ? 'opacity: 0.5; cursor: not-allowed;' : ''}"
+                        ${!c.is_active ? 'disabled' : ''}
+                    >
+                        Asignar
+                    </button>
                 </td>
             `;
             tbody.appendChild(tr);
         });
     }
 
-    document.getElementById('searchInput').addEventListener('keyup', (e) => {
-        const term = e.target.value.toLowerCase();
-        const filtered = allCustomers.filter(c =>
-            c.name.toLowerCase().includes(term) ||
-            c.whatsapp_id.includes(term) ||
-            c.address.toLowerCase().includes(term) ||
-            (c.email && c.email.toLowerCase().includes(term))
-        );
-        renderTable(filtered);
-    });
+    async function toggleStatus(waId, isActive) {
+        try {
+            const res = await fetch(`/customers/${waId}`, {
+                method: 'PUT',
+                headers: {
+                    ...authHeaders(),
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ is_active: isActive })
+            });
+            if (res.ok) {
+                loadCustomers(); // Reload to show new timestamp
+            } else {
+                alert('Error al actualizar estado');
+                loadCustomers();
+            }
+        } catch (e) {
+            console.error(e);
+            loadCustomers();
+        }
+    }
+
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput) {
+        searchInput.addEventListener('keyup', (e) => {
+            applyFilterAndSort();
+        });
+    }
 
     loadCustomers();
 
@@ -117,7 +222,8 @@
         try {
             const res = await fetch('/users/', { headers: authHeaders() });
             const users = await res.json();
-            const sellers = users.filter(u => u.role === 'seller');
+            // Filter only Active Sellers
+            const sellers = users.filter(u => u.role === 'seller' && u.is_active);
             const select = document.getElementById('editSeller');
             select.innerHTML = '<option value="">Seleccione Vendedor</option>';
             sellers.forEach(s => {
@@ -141,24 +247,27 @@
         document.getElementById('editModal').style.display = 'none';
     }
 
-    document.getElementById('editForm').addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const waId = document.getElementById('editWaId').value;
-        const sellerId = document.getElementById('editSeller').value;
-        if (!sellerId) return;
+    const editForm = document.getElementById('editForm');
+    if (editForm) {
+        editForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const waId = document.getElementById('editWaId').value;
+            const sellerId = document.getElementById('editSeller').value;
+            if (!sellerId) return;
 
-        try {
-            const res = await fetch('/customers/assign?whatsapp_id=' + waId + '&seller_id=' + sellerId, {
-                method: 'POST',
-                headers: authHeaders()
-            });
-            if (res.ok) {
-                closeModal();
-                loadCustomers();
-            } else {
-                alert('Error al asignar');
-            }
-        } catch (e) { console.error(e); }
-    });
+            try {
+                const res = await fetch('/customers/assign?whatsapp_id=' + waId + '&seller_id=' + sellerId, {
+                    method: 'POST',
+                    headers: authHeaders()
+                });
+                if (res.ok) {
+                    closeModal();
+                    loadCustomers();
+                } else {
+                    alert('Error al asignar');
+                }
+            } catch (e) { console.error(e); }
+        });
+    }
 </script>
 {% endblock %}
