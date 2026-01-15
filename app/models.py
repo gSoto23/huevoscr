@@ -27,6 +27,7 @@ class Customer(Base):
     periodicity = Column(String) # 'Semanal', 'Mensual'
     payment_method = Column(String) # e.g., 'Cash', 'Sinpe'
     is_active = Column(Boolean, default=True)
+    status_changed_at = Column(DateTime, nullable=True)
     
     seller_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     seller = relationship("User", back_populates="customers")
@@ -41,6 +42,7 @@ class Order(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     quantity = Column(Integer)
     total_amount = Column(Float)
+    payment_method = Column(String, default="Efectivo") # Added for specific sale record
     status = Column(String, default="pending") # pending, delivered, paid
     notes = Column(Text, nullable=True)
 

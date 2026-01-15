@@ -31,11 +31,21 @@ class CustomerBase(BaseModel):
 class CustomerCreate(CustomerBase):
     pass
 
-class CustomerUpdate(CustomerBase):
-    pass
+class CustomerUpdate(BaseModel):
+    whatsapp_id: Optional[str] = None
+    name: Optional[str] = None
+    email: Optional[EmailStr] = None
+    address: Optional[str] = None
+    location_pin: Optional[str] = None
+    cartons_qty: Optional[int] = None
+    periodicity: Optional[str] = None
+    payment_method: Optional[str] = None
+    seller_id: Optional[int] = None
+    is_active: Optional[bool] = None
 
 class Customer(CustomerBase):
     is_active: bool
+    status_changed_at: Optional[datetime] = None
     seller_id: Optional[int] = None
     seller: Optional[User] = None
 
@@ -46,10 +56,13 @@ class Customer(CustomerBase):
 class OrderBase(BaseModel):
     quantity: int
     total_amount: float
+    status: Optional[str] = "pending"
+    payment_method: Optional[str] = "Efectivo"
     notes: Optional[str] = None
 
 class OrderCreate(OrderBase):
     customer_id: str
+    created_at: Optional[datetime] = None  # Allow agent to backdate/specify date if needed
 
 class Order(OrderBase):
     id: int

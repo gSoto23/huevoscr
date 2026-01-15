@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List, Optional
+from datetime import datetime
 from .. import database, models, schemas, auth
 
 router = APIRouter(
@@ -107,6 +108,8 @@ def update_customer(
          raise HTTPException(status_code=403, detail="Not authorized to edit this customer")
 
     for key, value in customer_update.dict(exclude_unset=True).items():
+        if key == "is_active" and value != db_customer.is_active:
+             db_customer.status_changed_at = datetime.now()
         setattr(db_customer, key, value)
 
     db.commit()

@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
 from .. import database, models, schemas, auth
+from datetime import datetime
 
 router = APIRouter(
     prefix="/sales",
@@ -26,7 +27,11 @@ def create_sale(
         # For now, let's enforce assignment.
         raise HTTPException(status_code=403, detail="Customer not assigned to you")
 
-    db_order = models.Order(**order.dict(), seller_id=current_user.id)
+    sale_data = order.dict(exclude_unset=True)
+    if "created_at" not in sale_data or not sale_data["created_at"]:
+        sale_data["created_at"] = datetime.now()
+        
+    db_order = models.Order(**sale_data, seller_id=current_user.id)
     db.add(db_order)
     db.commit()
     db.refresh(db_order)
