@@ -47,8 +47,8 @@ document.getElementById('subscriptionForm').addEventListener('submit', async fun
     const data = Object.fromEntries(formData.entries());
 
     // Custom Validation
-    if (!/^\d{8}$/.test(data.whatsapp_id)) {
-        messageDiv.textContent = 'El número de WhatsApp debe tener exactamente 8 dígitos.';
+    if (!/^\d{8,}$/.test(data.whatsapp_id)) {
+        messageDiv.textContent = 'El número de WhatsApp debe tener al menos 8 dígitos.';
         messageDiv.className = 'error-message';
         messageDiv.classList.remove('hidden');
         btn.disabled = false;

@@ -64,14 +64,19 @@ def create_customer(
 def read_customers(
     skip: int = 0, 
     limit: int = 100, 
+    active: bool = None,
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(auth.get_current_active_user)
 ):
+    query = db.query(models.Customer)
+    if active is not None:
+        query = query.filter(models.Customer.is_active == active)
+
     if current_user.role == "admin":
-        customers = db.query(models.Customer).offset(skip).limit(limit).all()
+        customers = query.offset(skip).limit(limit).all()
     else:
         # Seller sees only their assigned customers
-        customers = db.query(models.Customer).filter(models.Customer.seller_id == current_user.id).offset(skip).limit(limit).all()
+        customers = query.filter(models.Customer.seller_id == current_user.id).offset(skip).limit(limit).all()
     return customers
 
 @router.get("/{whatsapp_id}", response_model=schemas.Customer)
