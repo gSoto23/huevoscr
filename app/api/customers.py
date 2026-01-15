@@ -35,6 +35,30 @@ def public_register_or_update_customer(customer: schemas.CustomerCreate, db: Ses
 
 # --- Protected Endpoints ---
 
+@router.post("/", response_model=schemas.Customer)
+def create_customer(
+    customer: schemas.CustomerCreate,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth.get_current_active_user)
+):
+    # Check allowed roles (Admin and Seller)
+    # Seller creates -> Auto assigned
+    # Admin creates -> Unassigned (default)
+    
+    db_cust = db.query(models.Customer).filter(models.Customer.whatsapp_id == customer.whatsapp_id).first()
+    if db_cust:
+        raise HTTPException(status_code=400, detail="El cliente ya existe con este WhatsApp")
+
+    new_customer = models.Customer(**customer.dict())
+    
+    if current_user.role == "seller":
+        new_customer.seller_id = current_user.id
+        
+    db.add(new_customer)
+    db.commit()
+    db.refresh(new_customer)
+    return new_customer
+
 @router.get("/", response_model=List[schemas.Customer])
 def read_customers(
     skip: int = 0, 

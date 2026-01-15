@@ -46,10 +46,35 @@ document.getElementById('subscriptionForm').addEventListener('submit', async fun
     const formData = new FormData(e.target);
     const data = Object.fromEntries(formData.entries());
 
+    // Custom Validation
+    if (!/^\d{8}$/.test(data.whatsapp_id)) {
+        messageDiv.textContent = 'El número de WhatsApp debe tener exactamente 8 dígitos.';
+        messageDiv.className = 'error-message';
+        messageDiv.classList.remove('hidden');
+        btn.disabled = false;
+        btn.textContent = 'Guardar Suscripción';
+        return;
+    }
+
+    // Check other required fields (HTML required attribute catches empty, but checking whitespace doesn't hurt)
+    if (!data.name.trim() || !data.address.trim()) {
+        messageDiv.textContent = 'Por favor complete todos los campos requeridos.';
+        messageDiv.className = 'error-message';
+        messageDiv.classList.remove('hidden');
+        btn.disabled = false;
+        btn.textContent = 'Guardar Suscripción';
+        return;
+    }
+
     // Convert cartons_qty to int
     data.cartons_qty = parseInt(data.cartons_qty);
+
+    // Sanitize optional fields: Pydantic EmailStr fails on empty string
+    if (!data.email) delete data.email;
+    if (!data.location_pin) delete data.location_pin;
+
     // Explicitly set is_active default for new users if needed, but backend handles it
-    data.is_active = true;
+    data.is_active = true; // This might be ignored by backend schema but harmless
 
     try {
         const response = await fetch('/customers/public', {

@@ -2,6 +2,21 @@ from pydantic import BaseModel, EmailStr
 from typing import Optional, List
 from datetime import datetime
 
+# --- User (Admin/Seller) Schemas ---
+class UserBase(BaseModel):
+    username: str
+    role: str # 'admin', 'seller'
+
+class UserCreate(UserBase):
+    password: str
+
+class User(UserBase):
+    id: int
+    is_active: bool
+
+    class Config:
+        orm_mode = True
+
 # --- Customer Schemas ---
 class CustomerBase(BaseModel):
     whatsapp_id: str
@@ -22,21 +37,7 @@ class CustomerUpdate(CustomerBase):
 class Customer(CustomerBase):
     is_active: bool
     seller_id: Optional[int] = None
-
-    class Config:
-        orm_mode = True
-
-# --- User (Admin/Seller) Schemas ---
-class UserBase(BaseModel):
-    username: str
-    role: str # 'admin', 'seller'
-
-class UserCreate(UserBase):
-    password: str
-
-class User(UserBase):
-    id: int
-    is_active: bool
+    seller: Optional[User] = None
 
     class Config:
         orm_mode = True

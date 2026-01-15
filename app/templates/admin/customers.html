@@ -4,6 +4,12 @@
 
 {% block content %}
 <h1>Gestión de Clientes</h1>
+
+<div style="margin-bottom: 20px;">
+    <input type="text" id="searchInput" placeholder="Buscar cliente por nombre, ID o dirección..."
+        style="width: 100%; max-width: 400px; padding: 10px; border-radius: 20px; border: 1px solid #ccc;">
+</div>
+
 <div class="card">
     <div class="table-responsive">
         <table id="customerTable">
@@ -11,6 +17,10 @@
                 <tr>
                     <th>WhatsApp / ID</th>
                     <th>Nombre</th>
+                    <th>Email</th>
+                    <th>Dirección</th>
+                    <th>Ubicación</th>
+                    <th>Forma de Pago</th>
                     <th>Cantidad</th>
                     <th>Día</th>
                     <th>Vendedor</th>
@@ -48,29 +58,59 @@
 
 {% block scripts %}
 <script>
+    let allCustomers = [];
+
     async function loadCustomers() {
         try {
             const res = await fetch('/customers/', { headers: authHeaders() });
-            const customers = await res.json();
-            const tbody = document.querySelector('#customerTable tbody');
-            tbody.innerHTML = '';
-
-            customers.forEach(c => {
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td>${c.whatsapp_id}</td>
-                    <td>${c.name}</td>
-                    <td>${c.cartons_qty}</td>
-                    <td>${c.delivery_day}</td>
-                    <td>${c.seller_id ? 'Vendedor ' + c.seller_id : '<span style="color:#999">Sin asignar</span>'}</td>
-                    <td>
-                        <button onclick="openEditModal('${c.whatsapp_id}', '${c.seller_id || ''}')" class="btn-secondary" style="padding: 5px 10px; font-size: 0.8rem;">Asignar</button>
-                    </td>
-                `;
-                tbody.appendChild(tr);
-            });
+            allCustomers = await res.json();
+            renderTable(allCustomers);
         } catch (e) { console.error(e); }
     }
+
+    function renderTable(customers) {
+        const tbody = document.querySelector('#customerTable tbody');
+        tbody.innerHTML = '';
+        customers.forEach(c => {
+            const tr = document.createElement('tr');
+
+            // Format Location Link
+            let locationHtml = '-';
+            if (c.location_pin) {
+                locationHtml = `<a href="${c.location_pin}" target="_blank" style="color: var(--color-red); text-decoration: none;">
+                                    <i class="fa-solid fa-map-location-dot"></i> Ver
+                                </a>`;
+            }
+
+            tr.innerHTML = `
+                <td>${c.whatsapp_id}</td>
+                <td>${c.name}</td>
+                <td>${c.email || '-'}</td>
+                <td style="font-size: 0.9rem; max-width: 200px;">${c.address}</td>
+                <td>${locationHtml}</td>
+                <td>${c.payment_method}</td>
+                <td>${c.cartons_qty}</td>
+                <td>${c.periodicity}</td>
+                <td>${c.seller ? c.seller.username : '<span style="color:#999">Sin asignar</span>'}</td>
+                <td>
+                    <button onclick="openEditModal('${c.whatsapp_id}', '${c.seller_id || ''}')" class="btn-secondary" style="padding: 5px 10px; font-size: 0.8rem;">Asignar</button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    document.getElementById('searchInput').addEventListener('keyup', (e) => {
+        const term = e.target.value.toLowerCase();
+        const filtered = allCustomers.filter(c =>
+            c.name.toLowerCase().includes(term) ||
+            c.whatsapp_id.includes(term) ||
+            c.address.toLowerCase().includes(term) ||
+            (c.email && c.email.toLowerCase().includes(term))
+        );
+        renderTable(filtered);
+    });
+
     loadCustomers();
 
     async function loadSellers() {
