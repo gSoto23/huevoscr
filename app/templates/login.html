@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Iniciar Sesión - Huevos CR</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@300;400;600&display=swap" rel="stylesheet">
+</head>
+
+<body
+    style="background-color: var(--color-yellow); display: flex; align-items: center; justify-content: center; height: 100vh; padding: 20px;">
+
+    <div class="form-card" style="width: 100%; max-width: 400px;">
+        <div style="text-align: center; margin-bottom: 20px;">
+            <img src="/static/images/logo.svg" alt="Huevos CR" style="height: 80px; margin-bottom: 15px;">
+            <h2 style="margin: 0;">Sistema Huevos CR</h2>
+            <p>Acceso administrativo y vendedores</p>
+        </div>
+
+        <form id="loginForm">
+            <div class="form-group">
+                <label for="username">Usuario</label>
+                <input type="text" id="username" name="username" required>
+            </div>
+            <div class="form-group">
+                <label for="password">Contraseña</label>
+                <input type="password" id="password" name="password" required>
+            </div>
+            <button type="submit" class="btn-primary-block">Entrar</button>
+        </form>
+        <div id="loginMessage" class="hidden error-message"></div>
+        <p style="text-align: center; margin-top: 20px;"><a href="/">Volver al inicio</a></p>
+    </div>
+
+    <script>
+        document.getElementById('loginForm').addEventListener('submit', async function (e) {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const messageDiv = document.getElementById('loginMessage');
+
+            try {
+                const response = await fetch('/token', {
+                    method: 'POST',
+                    body: formData // OAuth2PasswordRequestForm expects form data
+                });
+
+                if (response.ok) {
+                    const result = await response.json();
+                    localStorage.setItem('token', result.access_token);
+                    // Decode token to check role (simple check)
+                    const payload = JSON.parse(atob(result.access_token.split('.')[1]));
+                    if (payload.role === 'admin') {
+                        window.location.href = '/admin/dashboard';
+                    } else {
+                        window.location.href = '/seller/dashboard';
+                    }
+                } else {
+                    messageDiv.textContent = 'Usuario o contraseña incorrectos';
+                    messageDiv.classList.remove('hidden');
+                }
+            } catch (err) {
+                messageDiv.textContent = 'Error de conexión';
+                messageDiv.classList.remove('hidden');
+            }
+        });
+    </script>
+</body>
+
+</html>

@@ -1,13 +1,153 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Huevos CR</title>
+    <title>Huevos CR - Huevos Frescos a Domicilio</title>
     <link rel="stylesheet" href="/static/css/style.css">
+    <!-- Font Awesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@300;400;600&display=swap" rel="stylesheet">
 </head>
+
 <body>
-    <h1>Bienvenido a Huevos CR</h1>
-    <p>Sistema de distribución de huevos fresco y confiable.</p>
+    <header>
+        <div class="container header-container">
+            <div class="logo">
+                <a href="/" style="text-decoration: none; color: inherit;">
+                    <img src="/static/images/logo.png" alt="Huevos CR" style="height: 50px; vertical-align: middle;">
+                </a>
+            </div>
+            <nav>
+                <!-- Removed Subscribe button as requested -->
+                <a href="/login" class="btn-secondary">Iniciar Sesión</a>
+            </nav>
+        </div>
+    </header>
+
+    <main>
+        <section class="hero">
+            <div class="container hero-content">
+                <div class="hero-text">
+                    <h1>Huevos frescos y directos <span class="highlight">a tu puerta.</span></h1>
+                    <p>Olvídate de ir al súper. Suscríbete y recibe cartones de huevo fresco cada semana o mes. Fácil,
+                        recurrente y sin complicaciones.</p>
+                    <a href="#subscribe" class="btn-primary-lg">Empezar Ahora</a>
+                </div>
+                <div class="hero-image">
+                    <img src="/static/images/banner.png" alt="Huevos Frescos" style="max-width: 100%; height: auto;">
+                </div>
+            </div>
+        </section>
+
+        <!-- Subscribe Section (Moved above features for mobile priority or just reordered) 
+             User asked: "mobile... info boxes st al final". 
+             So in Desktop: Standard. In Mobile: Hero -> Form -> Features -> Footer.
+             To achieve this without complex grid/flex order, I will place Form FIRST in HTML, then Features.
+             Wait, usually Hero -> Features -> Form. User wants Mobile: Hero -> Form -> Features.
+             I can swap them in HTML and use CSS to reverse on desktop if needed, OR just swap them permanently if it makes sense.
+             Let's swap them permanently as "Subscribe" is the main CTA. -->
+
+        <section id="subscribe" class="subscription-section">
+            <div class="container">
+                <div class="form-card">
+                    <h2>Suscribirse / Actualizar Datos</h2>
+                    <p>Ingresa tu WhatsApp para crear o editar tu suscripción.</p>
+
+                    <form id="subscriptionForm">
+                        <div class="form-group">
+                            <label for="whatsapp_id">Número de WhatsApp (Tu ID)</label>
+                            <input type="text" id="whatsapp_id" name="whatsapp_id" required placeholder="Ej: 88888888">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="name">Nombre Completo</label>
+                            <input type="text" id="name" name="name" required placeholder="Tu nombre">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="email">Correo Electrónico (Opcional)</label>
+                            <input type="email" id="email" name="email" placeholder="tucorreo@ejemplo.com">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="address">Dirección de Entrega</label>
+                            <textarea id="address" name="address" required
+                                placeholder="Dirección exacta, casa, color..."></textarea>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="location_pin">Link de Ubicación (Waze/Google Maps)</label>
+                            <div style="display: flex; gap: 10px;">
+                                <input type="text" id="location_pin" name="location_pin"
+                                    placeholder="https://maps.google.com/..." style="flex: 1;">
+                                <button type="button" id="geoBtn" class="btn-secondary"
+                                    style="padding: 0 15px; white-space: nowrap;" onclick="getLocation()">
+                                    <i class="fa-solid fa-location-dot"></i> Usar mi ubicación
+                                </button>
+                            </div>
+                            <small id="geoMsg" style="color: #666; font-size: 0.8rem;"></small>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="cartons_qty">Cantidad de Cartones</label>
+                                <input type="number" id="cartons_qty" name="cartons_qty" min="1" value="1" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="periodicity">Periodicidad</label>
+                                <select id="periodicity" name="periodicity" required>
+                                    <option value="Semanal">Semanal</option>
+                                    <option value="Mensual">Mensual</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="payment_method">Forma de Pago</label>
+                            <select id="payment_method" name="payment_method" required>
+                                <option value="Sinpe">Sinpe Móvil</option>
+                                <option value="Efectivo">Efectivo</option>
+                                <option value="Transferencia">Transferencia</option>
+                            </select>
+                        </div>
+
+                        <button type="submit" class="btn-primary-block">Guardar Suscripción</button>
+                    </form>
+                    <div id="formMessage" class="hidden"></div>
+                </div>
+            </div>
+        </section>
+
+        <section id="features" class="features">
+            <div class="container">
+                <div class="feature-card">
+                    <i class="fa-solid fa-calendar-check"></i>
+                    <h3>Recurrente</h3>
+                    <p>Elige tu periodicidad y olvídate. Nosotros nos encargamos.</p>
+                </div>
+                <div class="feature-card">
+                    <i class="fa-solid fa-truck-fast"></i>
+                    <h3>Directo</h3>
+                    <p>De la granja a tu mesa. Sin intermediarios innecesarios.</p>
+                </div>
+                <div class="feature-card">
+                    <i class="fa-brands fa-whatsapp"></i>
+                    <h3>Fácil</h3>
+                    <p>Gestiona todo con tu número de WhatsApp.</p>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer
+        style="background-color: var(--color-yellow); padding: 20px; text-align: center; border-top: 2px solid #000;">
+        <p style="font-weight: bold; margin:0;">Huevos CR &copy; 2026</p>
+    </footer>
+
+    <script src="/static/js/landing.js"></script>
 </body>
+
 </html>

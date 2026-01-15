@@ -1,0 +1,100 @@
+{% extends "admin/base.html" %}
+
+{% block nav_conf %}active{% endblock %}
+
+{% block content %}
+<h1>Configuración del Sistema</h1>
+
+<div class="card">
+    <h3>Parámetros Generales</h3>
+    <p>Defina los valores para las variables del sistema.</p>
+
+    <form id="fixedConfigForm" style="display: flex; flex-direction: column; gap: 20px; max-width: 600px;">
+
+        <div class="form-group">
+            <label for="price_carton">Precio por Cartón (₡)</label>
+            <input type="number" id="price_carton" name="price_carton" placeholder="Ej: 3000" required>
+            <small>Precio de venta al público.</small>
+        </div>
+
+        <div class="form-group">
+            <label for="commission_seller">Comisión Vendedor (₡)</label>
+            <input type="number" id="commission_seller" name="commission_seller" placeholder="Ej: 200" required>
+            <small>Monto que gana el vendedor por cada cartón.</small>
+        </div>
+
+        <div class="form-group">
+            <label for="sinpe_number">Número SINPE Móvil</label>
+            <input type="text" id="sinpe_number" name="sinpe_number" placeholder="Ej: 8888-8888">
+            <small>Número para recibir pagos.</small>
+        </div>
+
+        <div class="form-group">
+            <label for="support_phone">Teléfono Soporte</label>
+            <input type="text" id="support_phone" name="support_phone" placeholder="Ej: 8888-8888">
+            <small>Contacto para ayuda o soporte.</small>
+        </div>
+
+        <button type="submit" class="btn-primary" style="align-self: flex-start;">Guardar Cambios</button>
+    </form>
+    <div id="msg" class="hidden" style="margin-top: 15px;"></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const definedKeys = ['price_carton', 'commission_seller', 'sinpe_number', 'support_phone'];
+
+    async function loadConfigs() {
+        try {
+            const res = await fetch('/config/', { headers: authHeaders() });
+            const configs = await res.json();
+
+            // Map array of {key, value} to form inputs
+            configs.forEach(c => {
+                const input = document.getElementById(c.key);
+                if (input) {
+                    input.value = c.value;
+                }
+            });
+        } catch (e) {
+            console.error(e);
+        }
+    }
+    loadConfigs();
+
+    document.getElementById('fixedConfigForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const msgDiv = document.getElementById('msg');
+        msgDiv.classList.add('hidden');
+
+        const formData = new FormData(e.target);
+        const updates = [];
+
+        // We have to update each key individually as the API expects single item update.
+        // Or we could race them.
+        for (const key of definedKeys) {
+            const val = formData.get(key);
+            if (val) {
+                updates.push(fetch('/config/', {
+                    method: 'POST',
+                    headers: authHeaders(),
+                    body: JSON.stringify({ key: key, value: val })
+                }));
+            }
+        }
+
+        try {
+            await Promise.all(updates);
+            msgDiv.textContent = "Configuración actualizada correctamente.";
+            msgDiv.className = "success-message";
+            msgDiv.classList.remove('hidden');
+        } catch (err) {
+            console.error(err);
+            msgDiv.textContent = "Error al guardar.";
+            msgDiv.className = "error-message";
+            msgDiv.classList.remove('hidden');
+        }
+    });
+</script>
+{% endblock %}

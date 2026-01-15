@@ -1,0 +1,68 @@
+{% extends "admin/base.html" %}
+
+{% block nav_dash %}active{% endblock %}
+
+{% block content %}
+<h1>Dashboard Administrativo</h1>
+
+<div class="stat-grid">
+    <div class="stat-card">
+        <h3>Total Clientes</h3>
+        <div class="stat-number" id="total-clients">-</div>
+    </div>
+    <!-- Removed other stats for cleaner look as per "only customer list" request or kept minimal? 
+         User said "only want the general list". 
+         I will keep the Total Clients stat as it's relevant to the list, but focus on the table. -->
+</div>
+
+<div class="card">
+    <h3>Lista General de Clientes</h3>
+    <table id="customerTable">
+        <thead>
+            <tr>
+                <th>WhatsApp / ID</th>
+                <th>Nombre</th>
+                <th>Cantidad</th>
+                <th>Día</th>
+                <th>Vendedor</th>
+            </tr>
+        </thead>
+        <tbody>
+            <!-- Populated by JS -->
+        </tbody>
+    </table>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    async function loadData() {
+        try {
+            const res = await fetch('/customers/', { headers: authHeaders() });
+            const customers = await res.json();
+
+            // Update Stat
+            document.getElementById('total-clients').textContent = customers.length;
+
+            // Update Table
+            const tbody = document.querySelector('#customerTable tbody');
+            tbody.innerHTML = '';
+
+            customers.forEach(c => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${c.whatsapp_id}</td>
+                    <td>${c.name}</td>
+                    <td>${c.cartons_qty}</td>
+                    <td>${c.delivery_day}</td>
+                    <td>${c.seller_id ? 'Vendedor ' + c.seller_id : 'Sin asignar'}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        } catch (e) {
+            console.error(e);
+        }
+    }
+    loadData();
+</script>
+{% endblock %}

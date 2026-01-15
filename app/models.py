@@ -24,7 +24,7 @@ class Customer(Base):
     address = Column(Text)
     location_pin = Column(String, nullable=True)
     cartons_qty = Column(Integer, default=1)
-    delivery_day = Column(String) # e.g., 'Monday'
+    periodicity = Column(String) # 'Semanal', 'Mensual'
     payment_method = Column(String) # e.g., 'Cash', 'Sinpe'
     is_active = Column(Boolean, default=True)
     

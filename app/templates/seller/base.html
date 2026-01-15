@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Vendedor - Huevos CR{% endblock %}</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@300;400;600&display=swap" rel="stylesheet">
+    <style>
+        .admin-layout {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        .sidebar {
+            width: 250px;
+            background: #000;
+            color: #fff;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sidebar h2 {
+            color: var(--color-yellow);
+            margin-bottom: 40px;
+        }
+
+        .sidebar a {
+            color: #fff;
+            text-decoration: none;
+            padding: 15px;
+            display: block;
+            border-radius: 8px;
+            margin-bottom: 5px;
+        }
+
+        .sidebar a:hover,
+        .sidebar a.active {
+            background: #333;
+        }
+
+        .sidebar a i {
+            margin-right: 10px;
+            width: 20px;
+            text-align: center;
+        }
+
+        .content {
+            flex: 1;
+            padding: 40px;
+            background: #f4f4f4;
+        }
+
+        .card {
+            background: #fff;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+            margin-bottom: 20px;
+        }
+
+        .stat-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: #fff;
+            padding: 20px;
+            border-radius: 12px;
+            border-left: 5px solid var(--color-red);
+        }
+
+        .stat-number {
+            font-size: 2rem;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th,
+        td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+
+        th {
+            background: #f9f9f9;
+        }
+
+        /* Mobile Responsive Styles */
+        @media (max-width: 768px) {
+            .admin-layout {
+                flex-direction: column;
+            }
+
+            .content {
+                padding: 20px;
+                margin-top: 60px;
+            }
+
+            .mobile-header {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                background-color: #000;
+                padding: 10px;
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                z-index: 100;
+                height: 60px;
+                box-sizing: border-box;
+                border-bottom: 2px solid var(--color-yellow);
+            }
+
+            .mobile-header img {
+                height: 40px;
+            }
+
+            .toggle-btn {
+                display: block;
+                background: none;
+                border: none;
+                color: #fff;
+                font-size: 1.5rem;
+                position: absolute;
+                left: 20px;
+                cursor: pointer;
+            }
+
+            .sidebar {
+                position: fixed;
+                top: 60px;
+                left: 0;
+                width: 100%;
+                height: calc(100vh - 60px);
+                background: rgba(0, 0, 0, 0.95);
+                transform: translateX(-100%);
+                transition: transform 0.3s ease-in-out;
+                z-index: 99;
+                padding-top: 20px;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .sidebar.open {
+                transform: translateX(0);
+            }
+
+            .sidebar div:first-child {
+                display: none;
+            }
+
+            .sidebar nav {
+                width: 80%;
+                text-align: center;
+                margin-top: 20px;
+            }
+
+            .sidebar nav a {
+                font-size: 1.2rem;
+                padding: 15px;
+                margin-bottom: 10px;
+            }
+        }
+    </style>
+    <script>
+        function toggleMenu() {
+            const sidebar = document.querySelector('.sidebar');
+            sidebar.classList.toggle('open');
+            const icon = document.querySelector('.toggle-btn i');
+            if (sidebar.classList.contains('open')) {
+                icon.classList.remove('fa-bars');
+                icon.classList.add('fa-times');
+            } else {
+                icon.classList.remove('fa-times');
+                icon.classList.add('fa-bars');
+            }
+        }
+    </script>
+    <style>
+        @media (min-width: 769px) {
+            .mobile-header {
+                display: none !important;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .mobile-header {
+                display: flex !important;
+            }
+        }
+    </style>
+
+<body>
+    <div class="mobile-header" style="display: none;">
+        <button class="toggle-btn" onclick="toggleMenu()"><i class="fa-solid fa-bars"></i></button>
+        <img src="/static/images/logow.png" alt="Huevos CR">
+    </div>
+
+    <div class="admin-layout">
+        <aside class="sidebar">
+            <div style="text-align: center; margin-bottom: 20px;">
+                <img src="/static/images/logow.png" alt="Huevos CR" style="height: 60px;">
+            </div>
+            <nav>
+                <a href="/seller/dashboard" class="{% block nav_dash %}{% endblock %}"><i
+                        class="fa-solid fa-chart-line"></i> Dashboard</a>
+                <a href="/seller/customers" class="{% block nav_cust %}{% endblock %}"><i class="fa-solid fa-users"></i>
+                    Clientes</a>
+                <a href="/seller/sales" class="{% block nav_sales %}{% endblock %}"><i
+                        class="fa-solid fa-cart-shopping"></i> Ventas</a>
+                <a href="#" onclick="logout()" style="margin-top: auto; color: var(--color-red);"><i
+                        class="fa-solid fa-arrow-right-from-bracket"></i> Salir</a>
+            </nav>
+        </aside>
+        <main class="content">
+            {% block content %}{% endblock %}
+        </main>
+    </div>
+    <script>
+        function logout() {
+            localStorage.removeItem('token');
+            window.location.href = '/login';
+        }
+        const token = localStorage.getItem('token');
+        if (!token) window.location.href = '/login';
+
+        function authHeaders() {
+            return {
+                'Authorization': 'Bearer ' + localStorage.getItem('token'),
+                'Content-Type': 'application/json'
+            };
+        }
+    </script>
+    {% block scripts %}{% endblock %}
+</body>
+
+</html>

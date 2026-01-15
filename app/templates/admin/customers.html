@@ -1,0 +1,124 @@
+{% extends "admin/base.html" %}
+
+{% block nav_cust %}active{% endblock %}
+
+{% block content %}
+<h1>Gestión de Clientes</h1>
+<div class="card">
+    <div class="table-responsive">
+        <table id="customerTable">
+            <thead>
+                <tr>
+                    <th>WhatsApp / ID</th>
+                    <th>Nombre</th>
+                    <th>Cantidad</th>
+                    <th>Día</th>
+                    <th>Vendedor</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Populated by JS -->
+            </tbody>
+        </table>
+    </div>
+</div>
+<!-- Modal for Editing/Assignments -->
+<div id="editModal"
+    style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:200;">
+    <div class="card" style="width: 400px; margin: 100px auto; padding: 20px;">
+        <h3>Asignar Vendedor</h3>
+        <form id="editForm">
+            <input type="hidden" id="editWaId" name="whatsapp_id">
+            <div class="form-group">
+                <label>Seleccionar Vendedor</label>
+                <select id="editSeller" name="seller_id" required>
+                    <option value="">Cargando...</option>
+                </select>
+            </div>
+            <div style="display:flex; justify-content: flex-end; gap: 10px;">
+                <button type="button" class="btn-secondary" onclick="closeModal()">Cancelar</button>
+                <button type="submit" class="btn-primary">Asignar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    async function loadCustomers() {
+        try {
+            const res = await fetch('/customers/', { headers: authHeaders() });
+            const customers = await res.json();
+            const tbody = document.querySelector('#customerTable tbody');
+            tbody.innerHTML = '';
+
+            customers.forEach(c => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${c.whatsapp_id}</td>
+                    <td>${c.name}</td>
+                    <td>${c.cartons_qty}</td>
+                    <td>${c.delivery_day}</td>
+                    <td>${c.seller_id ? 'Vendedor ' + c.seller_id : '<span style="color:#999">Sin asignar</span>'}</td>
+                    <td>
+                        <button onclick="openEditModal('${c.whatsapp_id}', '${c.seller_id || ''}')" class="btn-secondary" style="padding: 5px 10px; font-size: 0.8rem;">Asignar</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        } catch (e) { console.error(e); }
+    }
+    loadCustomers();
+
+    async function loadSellers() {
+        try {
+            const res = await fetch('/users/', { headers: authHeaders() });
+            const users = await res.json();
+            const sellers = users.filter(u => u.role === 'seller');
+            const select = document.getElementById('editSeller');
+            select.innerHTML = '<option value="">Seleccione Vendedor</option>';
+            sellers.forEach(s => {
+                const opt = document.createElement('option');
+                opt.value = s.id;
+                opt.textContent = s.username;
+                select.appendChild(opt);
+            });
+        } catch (e) { console.error(e); }
+    }
+
+    function openEditModal(waId, currentSellerId) {
+        document.getElementById('editWaId').value = waId;
+        document.getElementById('editModal').style.display = 'block';
+        loadSellers().then(() => {
+            if (currentSellerId && currentSellerId !== 'null') document.getElementById('editSeller').value = currentSellerId;
+        });
+    }
+
+    function closeModal() {
+        document.getElementById('editModal').style.display = 'none';
+    }
+
+    document.getElementById('editForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const waId = document.getElementById('editWaId').value;
+        const sellerId = document.getElementById('editSeller').value;
+        if (!sellerId) return;
+
+        try {
+            const res = await fetch('/customers/assign?whatsapp_id=' + waId + '&seller_id=' + sellerId, {
+                method: 'POST',
+                headers: authHeaders()
+            });
+            if (res.ok) {
+                closeModal();
+                loadCustomers();
+            } else {
+                alert('Error al asignar');
+            }
+        } catch (e) { console.error(e); }
+    });
+</script>
+{% endblock %}

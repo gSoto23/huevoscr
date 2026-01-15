@@ -10,7 +10,7 @@ class CustomerBase(BaseModel):
     address: str
     location_pin: Optional[str] = None
     cartons_qty: int = 1
-    delivery_day: str
+    periodicity: str
     payment_method: str
 
 class CustomerCreate(CustomerBase):

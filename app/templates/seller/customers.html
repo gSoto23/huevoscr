@@ -1,0 +1,51 @@
+{% extends "seller/base.html" %}
+
+{% block nav_cust %}active{% endblock %}
+
+{% block content %}
+<h1>Mis Clientes</h1>
+<div class="card">
+    <div class="table-responsive">
+        <table id="customerTable">
+            <thead>
+                <tr>
+                    <th>WhatsApp / ID</th>
+                    <th>Nombre</th>
+                    <th>Cantidad</th>
+                    <th>Día</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Populated by JS -->
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    async function loadCustomers() {
+        try {
+            const res = await fetch('/customers/', { headers: authHeaders() });
+            const customers = await res.json();
+            const tbody = document.querySelector('#customerTable tbody');
+            tbody.innerHTML = '';
+
+            customers.forEach(c => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${c.whatsapp_id}</td>
+                    <td>${c.name}</td>
+                    <td>${c.cartons_qty}</td>
+                    <td>${c.delivery_day}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        } catch (e) {
+            console.error(e);
+        }
+    }
+    loadCustomers();
+</script>
+{% endblock %}

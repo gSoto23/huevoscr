@@ -1,0 +1,18 @@
+{% extends "admin/base.html" %}
+
+{% block nav_support %}active{% endblock %}
+
+{% block content %}
+<h1>Servicio al Cliente (IA)</h1>
+
+<div class="card">
+    <h3>Asistente Virtual</h3>
+    <!-- iframe placeholder for n8n -->
+    <p>Sistema conectado a n8n. Esperando datos...</p>
+    <div
+        style="background: #eee; height: 300px; display: flex; flex-direction: column; align-items: center; justify-content: center; border-radius: 8px;">
+        <i class="fa-solid fa-robot" style="font-size: 3rem; color: #666; margin-bottom: 20px;"></i>
+        <span>Waiting for n8n Integration</span>
+    </div>
+</div>
+{% endblock %}

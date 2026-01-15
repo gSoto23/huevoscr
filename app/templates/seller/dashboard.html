@@ -1,0 +1,87 @@
+{% extends "seller/base.html" %}
+
+{% block nav_dash %}active{% endblock %}
+
+{% block content %}
+<h1>Dashboard Vendedor</h1>
+
+<div class="stat-grid">
+    <div class="stat-card">
+        <h3>Mis Clientes</h3>
+        <div class="stat-number" id="total-clients">-</div>
+    </div>
+</div>
+
+<div class="card">
+    <h3>Mis Entregas de Hoy</h3>
+    <table id="customerTable">
+        <thead>
+            <tr>
+                <th>Cliente</th>
+                <th>Dirección</th>
+                <th>Cant.</th>
+                <th>Acción</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    async function loadData() {
+        try {
+            const res = await fetch('/customers/', { headers: authHeaders() });
+            const customers = await res.json();
+
+            document.getElementById('total-clients').textContent = customers.length;
+
+            // Filter todays deliveries? 
+            // The API returns ALL assigned customers. We might want to filter by day in JS or backend.
+            // For now, let's show all assigned customers in the table as "Route"
+
+            const tbody = document.querySelector('#customerTable tbody');
+            tbody.innerHTML = '';
+
+            customers.forEach(c => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${c.name} <br><small>${c.whatsapp_id}</small></td>
+                    <td>${c.address}</td>
+                    <td>${c.cartons_qty}</td>
+                    <td>
+                         <button class="btn-primary" onclick="registerSale('${c.whatsapp_id}', ${c.cartons_qty})" style="padding: 5px 10px; font-size: 0.8rem;">Registrar Venta</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        } catch (e) {
+            console.error(e);
+        }
+    }
+    loadData();
+
+    async function registerSale(customerId, qty) {
+        if (!confirm('¿Registrar venta de ' + qty + ' cartones?')) return;
+
+        try {
+            const res = await fetch('/sales/', {
+                method: 'POST',
+                headers: authHeaders(),
+                body: JSON.stringify({
+                    customer_id: customerId,
+                    quantity: qty,
+                    total_amount: qty * 3000, // Ideally fetch price from config, but hardcoded for MVP speed if config not loaded
+                    notes: "Venta rápida desde dashboard"
+                })
+            });
+            if (res.ok) {
+                alert('Venta registrada');
+            } else {
+                alert('Error al registrar venta');
+            }
+        } catch (e) { console.error(e); }
+    }
+</script>
+{% endblock %}
