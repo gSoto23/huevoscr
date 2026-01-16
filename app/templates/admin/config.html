@@ -35,6 +35,12 @@
             <small>Contacto para ayuda o soporte.</small>
         </div>
 
+        <div class="form-group">
+            <label for="delivery_days">Días de Entrega</label>
+            <input type="text" id="delivery_days" name="delivery_days" placeholder="Ej: Lunes y Jueves">
+            <small>Días que el sistema o agente informan para entregas.</small>
+        </div>
+
         <button type="submit" class="btn-primary" style="align-self: flex-start;">Guardar Cambios</button>
     </form>
     <div id="msg" class="hidden" style="margin-top: 15px;"></div>
@@ -43,7 +49,7 @@
 
 {% block scripts %}
 <script>
-    const definedKeys = ['price_carton', 'commission_seller', 'sinpe_number', 'support_phone'];
+    const definedKeys = ['price_carton', 'commission_seller', 'sinpe_number', 'support_phone', 'delivery_days'];
 
     async function loadConfigs() {
         try {

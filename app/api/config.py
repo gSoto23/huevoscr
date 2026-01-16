@@ -19,6 +19,11 @@ def get_all_configs(db: Session = Depends(database.get_db), current_user: models
     configs = db.query(models.Config).all()
     return configs
 
+@router.get("/dictionary", response_model=Dict[str, str])
+def get_configs_dict(db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_active_user)):
+    configs = db.query(models.Config).all()
+    return {c.key: c.value for c in configs}
+
 @router.get("/{key}", response_model=ConfigItem)
 def get_config(key: str, db: Session = Depends(database.get_db)):
     config = db.query(models.Config).filter(models.Config.key == key).first()
