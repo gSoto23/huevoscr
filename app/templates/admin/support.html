@@ -3,16 +3,126 @@
 {% block nav_support %}active{% endblock %}
 
 {% block content %}
-<h1>Servicio al Cliente (IA)</h1>
+<h1>Registro de Ventas (IA)</h1>
 
 <div class="card">
-    <h3>Asistente Virtual</h3>
-    <!-- iframe placeholder for n8n -->
-    <p>Sistema conectado a n8n. Esperando datos...</p>
-    <div
-        style="background: #eee; height: 300px; display: flex; flex-direction: column; align-items: center; justify-content: center; border-radius: 8px;">
-        <i class="fa-solid fa-robot" style="font-size: 3rem; color: #666; margin-bottom: 20px;"></i>
-        <span>Waiting for n8n Integration</span>
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+        <h3>Historial de Órdenes</h3>
+        <button onclick="loadSales()" class="btn-secondary" style="font-size:0.9rem;">
+            <i class="fa-solid fa-rotate-right"></i> Refrescar
+        </button>
+    </div>
+
+    <div class="table-responsive">
+        <table id="salesTable">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Cliente</th>
+                    <th>Detalles</th>
+                    <th>Monto</th>
+                    <th>Estado</th>
+                    <th>Fecha Entrega</th>
+                    <th>Día Entrega</th>
+                    <th>Vendedor</th>
+                    <th>Fecha Registro</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td colspan="7" style="text-align:center;">Cargando ventas...</td>
+                </tr>
+            </tbody>
+        </table>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    async function loadSales() {
+        const tbody = document.querySelector('#salesTable tbody');
+        try {
+            const res = await fetch('/sales/', { headers: authHeaders() });
+
+            if (res.status === 401) {
+                // Token expired
+                window.location.href = '/login';
+                return;
+            }
+
+            if (!res.ok) throw new Error('Error loading sales');
+
+            const sales = await res.json();
+
+            // Sort by ID desc (newest first) or Date desc
+            sales.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+            tbody.innerHTML = '';
+
+            if (sales.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;">No hay ventas registradas.</td></tr>';
+                return;
+            }
+
+            sales.forEach(s => {
+                const tr = document.createElement('tr');
+                const date = new Date(s.created_at).toLocaleString();
+                const total = new Intl.NumberFormat('es-CR', { style: 'currency', currency: 'CRC' }).format(s.total_amount);
+
+                // Status Badge Logic
+                let statusColor = '#666';
+                if (s.status === 'pending') statusColor = 'orange';
+                if (s.status === 'confirmed') statusColor = 'green';
+                if (s.status === 'paid') statusColor = 'blue';
+                if (s.status === 'delivered') statusColor = 'purple';
+                if (s.status === 'cancelled') statusColor = 'red';
+
+                // Parsing delivery
+                let deliveryDate = '-';
+                if (s.delivery_date) {
+                    deliveryDate = new Date(s.delivery_date).toLocaleDateString();
+                }
+
+                let deliveryDay = s.delivery_day || '-';
+
+                // Customer Info
+                const custName = s.customer ? s.customer.name : 'Desconocido';
+                const custPhone = s.customer_id;
+
+                // Seller Info
+                const sellerName = s.seller ? s.seller.username : '-';
+
+                tr.innerHTML = `
+                    <td>#${s.id}</td>
+                    <td>
+                        <div style="font-weight:bold;">${custName}</div>
+                        <div style="font-size:0.8rem; color:#666;">${custPhone}</div>
+                    </td>
+                    <td>
+                        ${s.quantity} cartones<br>
+                        <span style="font-size:0.8rem; color:#666;">${s.payment_method || '-'}</span>
+                    </td>
+                    <td>${total}</td>
+                    <td>
+                        <span style="background:${statusColor}; color:white; padding:2px 8px; border-radius:10px; font-size:0.8rem;">
+                            ${s.status}
+                        </span>
+                    </td>
+                    <td>${deliveryDate}</td>
+                    <td>${deliveryDay}</td>
+                    <td>${sellerName}</td>
+                    <td style="font-size:0.85rem;">${date}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+        } catch (e) {
+            console.error(e);
+            tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:red;">Error cargando datos.</td></tr>';
+        }
+    }
+
+    loadSales();
+</script>
 {% endblock %}

@@ -63,6 +63,26 @@ class OrderBase(BaseModel):
 class OrderCreate(OrderBase):
     customer_id: str
     created_at: Optional[datetime] = None  # Allow agent to backdate/specify date if needed
+    # Extra fields for Agent
+    delivery_day: Optional[str] = None
+    delivery_date: Optional[str] = None # Input as string, parsed in API
+    delivery_status: Optional[str] = None
+    seller_id: Optional[int] = None
+
+class OrderUpdate(BaseModel):
+    quantity: Optional[int] = None
+    total_amount: Optional[float] = None
+    payment_method: Optional[str] = None
+    status: Optional[str] = None
+    notes: Optional[str] = None
+    # Extra fields for AI Agent compatibility
+    customer_name: Optional[str] = None
+    phone: Optional[str] = None
+    delivery_status: Optional[str] = None
+    seller_name: Optional[str] = None
+    seller_id: Optional[int] = None
+    delivery_day: Optional[str] = None
+    delivery_date: Optional[str] = None
 
 class Order(OrderBase):
     id: int
@@ -70,6 +90,11 @@ class Order(OrderBase):
     seller_id: Optional[int] = None
     created_at: datetime
     status: str
+    delivery_day: Optional[str] = None
+    delivery_date: Optional[datetime] = None
+
+    customer: Optional[Customer] = None
+    seller: Optional[User] = None
 
     class Config:
         orm_mode = True

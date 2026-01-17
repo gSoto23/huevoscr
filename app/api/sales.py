@@ -31,8 +31,83 @@ def create_sale(
     if "created_at" not in sale_data or not sale_data["created_at"]:
         sale_data["created_at"] = datetime.now()
         
-    db_order = models.Order(**sale_data, seller_id=current_user.id)
+    # Logic change: detailed sales should be attributed to the customer's assigned seller,
+    # NOT the admin/agent user creating the record via API.
+    # If customer has a seller, use that. Else use current_user (e.g. admin making a direct sale).
+    real_seller_id = customer.seller_id if customer.seller_id else current_user.id
+
+    db_order = models.Order(**sale_data, seller_id=real_seller_id)
     db.add(db_order)
+    db.commit()
+    db.refresh(db_order)
+    return db_order
+
+@router.put("/{order_id}", response_model=schemas.Order)
+def update_sale(
+    order_id: int,
+    order_update: schemas.OrderUpdate,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth.get_current_active_user)
+):
+    db_order = db.query(models.Order).filter(models.Order.id == order_id).first()
+    if not db_order:
+        raise HTTPException(status_code=404, detail="Order not found")
+
+    # Permission check: Sellers can only update their own orders. Admin can update all.
+    if current_user.role != "admin" and db_order.seller_id != current_user.id:
+         raise HTTPException(status_code=403, detail="Not authorized to update this order")
+
+    # --- Logic to handle Agent specific fields ---
+    update_data = order_update.dict(exclude_unset=True)
+
+    # 1. Map 'delivery_status' to 'status'
+    if "delivery_status" in update_data:
+        update_data["status"] = update_data.pop("delivery_status")
+
+    # 2. Handle 'delivery_date' string (DD/MM/YYYY or YYYY-MM-DD) -> datetime
+    if "delivery_date" in update_data and isinstance(update_data["delivery_date"], str):
+        d_str = update_data["delivery_date"]
+        try:
+            # Try DD/MM/YYYY
+            dt = datetime.strptime(d_str, "%d/%m/%Y")
+            update_data["delivery_date"] = dt
+        except ValueError:
+            try:
+                # Try YYYY-MM-DD (ISO format common in JSON)
+                dt = datetime.strptime(d_str, "%Y-%m-%d")
+                update_data["delivery_date"] = dt
+            except ValueError:
+                # If both fail, remove it to prevent 500 error (or raise 400)
+                # Raising 400 is clearer for the user/agent
+                raise HTTPException(status_code=400, detail=f"Invalid date format for delivery_date: {d_str}. Use DD/MM/YYYY or YYYY-MM-DD")
+
+    # 3. Handle 'seller_name' -> Look up seller_id (Best effort)
+    # If seller_id is already provided in payload (schema has it now), use it.
+    # If seller_name is provided, it overrides or fills seller_id.
+    if "seller_name" in update_data:
+        s_name = update_data.pop("seller_name")
+        if s_name:
+            seller = db.query(models.User).filter(models.User.username == s_name).first()
+            if seller:
+                update_data["seller_id"] = seller.id
+    
+    # 4. Handle 'customer_name' -> Update Customer record (Best effort)
+    if "customer_name" in update_data:
+        c_name = update_data.pop("customer_name")
+        if c_name and db_order.customer:
+            db_order.customer.name = c_name
+            db.add(db_order.customer) # Mark as modified
+
+    # Remove fields that are not in Order model
+    # 'phone' is likely customer_id (PK), so we don't update it easily.
+    if "phone" in update_data:
+        del update_data["phone"]
+
+    # Apply updates
+    for key, value in update_data.items():
+        if hasattr(db_order, key):
+            setattr(db_order, key, value)
+
     db.commit()
     db.refresh(db_order)
     return db_order

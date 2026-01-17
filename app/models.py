@@ -44,6 +44,8 @@ class Order(Base):
     total_amount = Column(Float)
     payment_method = Column(String, default="Efectivo") # Added for specific sale record
     status = Column(String, default="pending") # pending, delivered, paid
+    delivery_day = Column(String, nullable=True)
+    delivery_date = Column(DateTime, nullable=True)
     notes = Column(Text, nullable=True)
 
     customer = relationship("Customer", back_populates="orders")
