@@ -30,13 +30,41 @@ def create_sale(
     sale_data = order.dict(exclude_unset=True)
     if "created_at" not in sale_data or not sale_data["created_at"]:
         sale_data["created_at"] = datetime.now()
-        
-    # Logic change: detailed sales should be attributed to the customer's assigned seller,
-    # NOT the admin/agent user creating the record via API.
-    # If customer has a seller, use that. Else use current_user (e.g. admin making a direct sale).
-    real_seller_id = customer.seller_id if customer.seller_id else current_user.id
 
-    db_order = models.Order(**sale_data, seller_id=real_seller_id)
+    # --- Agent Logic for Create ---
+    # 1. Map 'delivery_status' to 'status'
+    if "delivery_status" in sale_data:
+        sale_data["status"] = sale_data.pop("delivery_status")
+
+    # 2. Handle 'delivery_date'
+    if "delivery_date" in sale_data and isinstance(sale_data["delivery_date"], str):
+        d_str = sale_data["delivery_date"]
+        try:
+            dt = datetime.strptime(d_str, "%d/%m/%Y")
+            sale_data["delivery_date"] = dt
+        except ValueError:
+            try:
+                dt = datetime.strptime(d_str, "%Y-%m-%d")
+                sale_data["delivery_date"] = dt
+            except ValueError:
+                 raise HTTPException(status_code=400, detail=f"Invalid date format: {d_str}")
+
+    # 3. Clean up extra fields not in Order model
+    # customer_name, phone, seller_name might be in schema but not model
+    for field in ["customer_name", "phone", "seller_name"]:
+        if field in sale_data:
+            del sale_data[field]
+
+    # 4. Handle Seller ID logic
+    # If explicitly passed via API (e.g. from Agent), use it.
+    real_seller_id = sale_data.get("seller_id")
+    if not real_seller_id:
+        # Fallback to customer's assigned seller or current user
+        real_seller_id = customer.seller_id if customer.seller_id else current_user.id
+    
+    sale_data["seller_id"] = real_seller_id
+
+    db_order = models.Order(**sale_data)
     db.add(db_order)
     db.commit()
     db.refresh(db_order)
