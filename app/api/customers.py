@@ -115,6 +115,11 @@ def update_customer(
     for key, value in customer_update.dict(exclude_unset=True).items():
         if key == "is_active" and value != db_customer.is_active:
              db_customer.status_changed_at = datetime.now()
+        
+        # Auto-set context timestamp if content is updated
+        if key == "last_message_content":
+             db_customer.last_message_ts = datetime.now()
+             
         setattr(db_customer, key, value)
 
     db.commit()

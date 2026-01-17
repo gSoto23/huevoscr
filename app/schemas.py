@@ -42,10 +42,14 @@ class CustomerUpdate(BaseModel):
     payment_method: Optional[str] = None
     seller_id: Optional[int] = None
     is_active: Optional[bool] = None
+    last_message_content: Optional[str] = None
+    last_message_ts: Optional[datetime] = None
 
 class Customer(CustomerBase):
     is_active: bool
     status_changed_at: Optional[datetime] = None
+    last_message_content: Optional[str] = None
+    last_message_ts: Optional[datetime] = None
     seller_id: Optional[int] = None
     seller: Optional[User] = None
 

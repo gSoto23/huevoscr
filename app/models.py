@@ -29,6 +29,10 @@ class Customer(Base):
     is_active = Column(Boolean, default=True)
     status_changed_at = Column(DateTime, nullable=True)
     
+    # Context for AI Agent
+    last_message_content = Column(Text, nullable=True)
+    last_message_ts = Column(DateTime, nullable=True)
+    
     seller_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     seller = relationship("User", back_populates="customers")
     orders = relationship("Order", back_populates="customer")
