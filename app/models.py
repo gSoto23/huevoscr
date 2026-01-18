@@ -51,6 +51,11 @@ class Order(Base):
     delivery_day = Column(String, nullable=True)
     delivery_date = Column(DateTime, nullable=True)
     notes = Column(Text, nullable=True)
+    
+    # Receipt / Payment Proof
+    has_attachment = Column(Boolean, default=False)
+    receipt_media_id = Column(String, nullable=True)
+    receipt_caption = Column(Text, nullable=True)
 
     customer = relationship("Customer", back_populates="orders")
     seller = relationship("User", back_populates="orders")

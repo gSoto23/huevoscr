@@ -93,6 +93,26 @@ def read_customer(
     if current_user.role != "admin" and customer.seller_id != current_user.id:
          raise HTTPException(status_code=403, detail="Not authorized to view this customer")
          
+    # Fetch last order context
+    last_order = db.query(models.Order)\
+        .filter(models.Order.customer_id == whatsapp_id)\
+        .order_by(models.Order.created_at.desc())\
+        .first()
+        
+    if last_order:
+        customer.last_order_summary = {
+            "order_id": last_order.id,
+            "created_at": last_order.created_at,
+            "quantity": last_order.quantity,
+            "total_amount": last_order.total_amount,
+            "status": last_order.status,
+            "payment_method": last_order.payment_method,
+            "delivery_day": last_order.delivery_day,
+            "delivery_date": last_order.delivery_date
+        }
+    else:
+        customer.last_order_summary = None
+
     return customer
 
 @router.put("/{whatsapp_id}", response_model=schemas.Customer)

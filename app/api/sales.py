@@ -68,7 +68,24 @@ def create_sale(
     db.add(db_order)
     db.commit()
     db.refresh(db_order)
+    db.refresh(db_order)
     return db_order
+
+@router.get("/{order_id}", response_model=schemas.Order)
+def get_sale(
+    order_id: int,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth.get_current_active_user)
+):
+    order = db.query(models.Order).filter(models.Order.id == order_id).first()
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+        
+    # Permission check
+    if current_user.role != "admin" and order.seller_id != current_user.id:
+         raise HTTPException(status_code=403, detail="Not authorized to view this order")
+         
+    return order
 
 @router.put("/{order_id}", response_model=schemas.Order)
 def update_sale(

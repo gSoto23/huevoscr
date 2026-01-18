@@ -35,6 +35,9 @@
                     <th>Cant.</th>
                     <th>Monto</th>
                     <th>Fecha</th>
+                    <th>Estado</th>
+                    <th>Pago</th>
+                    <th>Acciones</th>
                 </tr>
             </thead>
             <tbody></tbody>
@@ -54,13 +57,25 @@
 
             sales.reverse().forEach(s => {
                 const tr = document.createElement('tr');
+                const isPaid = s.status === 'paid';
+                const actionBtn = isPaid ? '<span>✅</span>' : `<button style="background: var(--color-red); color: white; border: none; padding: 5px 10px; cursor: pointer; border-radius: 4px;" onclick="markAsPaid(${s.id})">Pagar</button>`;
+                
+                // Show receipt info if available
+                let receiptInfo = '';
+                if(s.has_attachment) {
+                    receiptInfo = ' <span title="Tiene comprobante">📎</span>';
+                }
+
                 tr.innerHTML = `
                     <td>${s.id}</td>
-                    <td>${s.customer_id}</td>
+                    <td>${s.customer ? s.customer.name : s.customer_id}</td>
                     <td>${s.seller_id ? s.seller_id : '-'}</td>
                     <td>${s.quantity}</td>
                     <td>₡${s.total_amount}</td>
                     <td>${new Date(s.created_at).toLocaleDateString()}</td>
+                    <td>${s.status || 'pending'}</td>
+                    <td>${s.payment_method || '-'} ${receiptInfo}</td>
+                    <td>${actionBtn}</td>
                 `;
                 tbody.appendChild(tr);
             });
@@ -69,6 +84,28 @@
         }
     }
     loadSales();
+
+    async function markAsPaid(id) {
+        if(!confirm('¿Marcar pedido como PAGADO?')) return;
+        try {
+            const res = await fetch(`/sales/${id}`, {
+                method: 'PUT',
+                headers: {
+                    ...authHeaders(),
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ status: 'paid' })
+            });
+            if(res.ok) {
+                loadSales();
+            } else {
+                alert('Error actualizando pedido');
+            }
+        } catch(e) {
+            console.error(e);
+            alert('Error de conexión');
+        }
+    }
 
     async function loadDistribution() {
         const day = document.getElementById('dayFilter').value;

@@ -1,5 +1,5 @@
 from pydantic import BaseModel, EmailStr
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 from datetime import datetime
 
 # --- User (Admin/Seller) Schemas ---
@@ -52,6 +52,7 @@ class Customer(CustomerBase):
     last_message_ts: Optional[datetime] = None
     seller_id: Optional[int] = None
     seller: Optional[User] = None
+    last_order_summary: Optional[Dict[str, Any]] = None
 
     class Config:
         orm_mode = True
@@ -63,6 +64,9 @@ class OrderBase(BaseModel):
     status: Optional[str] = "pending"
     payment_method: Optional[str] = "Efectivo"
     notes: Optional[str] = None
+    has_attachment: Optional[bool] = False
+    receipt_media_id: Optional[str] = None
+    receipt_caption: Optional[str] = None
 
 class OrderCreate(OrderBase):
     customer_id: str
