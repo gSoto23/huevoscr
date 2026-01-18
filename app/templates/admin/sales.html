@@ -44,6 +44,28 @@
         </table>
     </div>
 </div>
+
+<!-- Receipt Modal -->
+<div id="receiptModal" class="modal"
+    style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); align-items:center; justify-content:center; z-index:1000;">
+    <div style="background:white; padding:20px; border-radius:8px; max-width:500px; width:90%; position:relative;">
+        <span onclick="closeReceiptModal()"
+            style="position:absolute; top:10px; right:15px; cursor:pointer; font-size:1.5rem;">&times;</span>
+        <h4>Comprobante de Pago</h4>
+        <div id="receiptContent" style="margin-top:15px;">
+            <div
+                style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; background: #f9f9f9; padding: 10px; border-radius: 4px;">
+                <div><strong>Orden ID:</strong> <span id="receiptOrderId"></span></div>
+                <div><strong>Total:</strong> <span id="receiptTotal"></span></div>
+                <div style="grid-column: span 2;"><strong>Fecha Reporte:</strong> <span id="receiptDate"></span></div>
+            </div>
+            <div id="receiptImageContainer" style="margin-top:10px; text-align:center;"></div>
+        </div>
+        <div style="margin-top:20px; text-align:right;">
+            <button onclick="closeReceiptModal()" class="btn-primary">Cerrar</button>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
@@ -59,11 +81,14 @@
                 const tr = document.createElement('tr');
                 const isPaid = s.status === 'paid';
                 const actionBtn = isPaid ? '<span>✅</span>' : `<button style="background: var(--color-red); color: white; border: none; padding: 5px 10px; cursor: pointer; border-radius: 4px;" onclick="markAsPaid(${s.id})">Pagar</button>`;
-                
+
                 // Show receipt info if available
                 let receiptInfo = '';
-                if(s.has_attachment) {
-                    receiptInfo = ' <span title="Tiene comprobante">📎</span>';
+                if (s.has_attachment) {
+                    // Store receipt data in data attributes or pass to function
+                    const safeMedia = (s.receipt_media_id || '').replace(/"/g, '&quot;');
+                    const dateStr = new Date(s.created_at).toLocaleDateString() + ' ' + new Date(s.created_at).toLocaleTimeString();
+                    receiptInfo = ` <span title="Ver comprobante" style="cursor:pointer;" onclick="openReceiptModal('${safeMedia}', '${s.id}', '${s.total_amount}', '${dateStr}')">📎</span>`;
                 }
 
                 tr.innerHTML = `
@@ -85,8 +110,50 @@
     }
     loadSales();
 
+    function openReceiptModal(mediaId, orderId, total, date) {
+        document.getElementById('receiptOrderId').innerText = '#' + orderId;
+        document.getElementById('receiptTotal').innerText = '₡' + total;
+        document.getElementById('receiptDate').innerText = date;
+
+        const imgContainer = document.getElementById('receiptImageContainer');
+        imgContainer.innerHTML = ''; // Clear previous content
+
+        if (mediaId && (mediaId.startsWith('http://') || mediaId.startsWith('https://') || mediaId.startsWith('/static'))) {
+            // It's a URL, try to render it
+            imgContainer.innerHTML = `
+                <img src="${mediaId}" alt="Comprobante" style="max-width:100%; height:auto; border-radius:4px; box-shadow:0 2px 4px rgba(0,0,0,0.1); margin-bottom:10px;">
+                <br>
+                <a href="${mediaId}" target="_blank" class="btn-primary" style="text-decoration:none; padding:5px 10px; font-size:0.9rem;">Abrir original ↗</a>
+             `;
+        } else if (mediaId) {
+            // It's likely an ID
+            imgContainer.innerHTML = `
+                <div style="background:#f8f9fa; padding:15px; border-radius:8px; border:1px dashed #ccc; color:#666;">
+                    <p style="margin-bottom:5px;"><strong>Vista previa no disponible</strong></p>
+                    <p style="font-size:0.9rem; margin:0;">El valor recibido parece ser un ID de WhatsApp ("${mediaId}").<br>
+                    Para ver la imagen aquí, configura tu bot para enviar la <strong>URL pública</strong> del archivo.</p>
+                </div>
+             `;
+        }
+
+        const modal = document.getElementById('receiptModal');
+        modal.style.display = 'flex';
+    }
+
+    function closeReceiptModal() {
+        document.getElementById('receiptModal').style.display = 'none';
+    }
+
+    // Close on outside click
+    window.onclick = function (event) {
+        const modal = document.getElementById('receiptModal');
+        if (event.target == modal) {
+            closeReceiptModal();
+        }
+    }
+
     async function markAsPaid(id) {
-        if(!confirm('¿Marcar pedido como PAGADO?')) return;
+        if (!confirm('¿Marcar pedido como PAGADO?')) return;
         try {
             const res = await fetch(`/sales/${id}`, {
                 method: 'PUT',
@@ -96,12 +163,12 @@
                 },
                 body: JSON.stringify({ status: 'paid' })
             });
-            if(res.ok) {
+            if (res.ok) {
                 loadSales();
             } else {
                 alert('Error actualizando pedido');
             }
-        } catch(e) {
+        } catch (e) {
             console.error(e);
             alert('Error de conexión');
         }

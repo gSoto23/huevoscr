@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
 from .. import database, models, schemas, auth
+from ..core import utils
 from datetime import datetime
 
 router = APIRouter(
@@ -88,7 +89,7 @@ def get_sale(
     return order
 
 @router.put("/{order_id}", response_model=schemas.Order)
-def update_sale(
+async def update_sale(
     order_id: int,
     order_update: schemas.OrderUpdate,
     db: Session = Depends(database.get_db),
@@ -150,6 +151,13 @@ def update_sale(
 
     # Apply updates
     for key, value in update_data.items():
+        # Check if we need to download media
+        if key == "receipt_media_id" and value and str(value).startswith("http"):
+            # It's a URL, try to download it
+            # This requires WHATSAPP_TOKEN in .env
+            local_path = await utils.download_whatsapp_image(str(value))
+            value = local_path
+            
         if hasattr(db_order, key):
             setattr(db_order, key, value)
 

@@ -91,6 +91,9 @@ class OrderUpdate(BaseModel):
     seller_id: Optional[int] = None
     delivery_day: Optional[str] = None
     delivery_date: Optional[str] = None
+    has_attachment: Optional[bool] = None
+    receipt_media_id: Optional[str] = None
+    receipt_caption: Optional[str] = None
 
 class Order(OrderBase):
     id: int

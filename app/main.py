@@ -1,6 +1,10 @@
 from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from dotenv import load_dotenv
+
+load_dotenv()
+
 from .database import engine, Base
 from .api import auth, customers, config, sales, users
 from .routers import pages
@@ -17,6 +21,7 @@ app.include_router(config.router)
 app.include_router(sales.router)
 app.include_router(users.router)
 app.include_router(pages.router)
+
 
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
