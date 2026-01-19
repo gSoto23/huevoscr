@@ -33,6 +33,12 @@ class Customer(Base):
     last_message_content = Column(Text, nullable=True)
     last_message_ts = Column(DateTime, nullable=True)
     
+    # Pending Receipt Context
+    pending_receipt_media_id = Column(String, nullable=True)
+    pending_receipt_caption = Column(Text, nullable=True)
+    pending_receipt_ts = Column(DateTime, nullable=True)
+    pending_receipt_for_order_id = Column(Integer, nullable=True)
+    
     seller_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     seller = relationship("User", back_populates="customers")
     orders = relationship("Order", back_populates="customer")

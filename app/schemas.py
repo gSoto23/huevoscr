@@ -44,12 +44,20 @@ class CustomerUpdate(BaseModel):
     is_active: Optional[bool] = None
     last_message_content: Optional[str] = None
     last_message_ts: Optional[datetime] = None
+    pending_receipt_media_id: Optional[str] = None
+    pending_receipt_caption: Optional[str] = None
+    pending_receipt_ts: Optional[datetime] = None
+    pending_receipt_for_order_id: Optional[int] = None
 
 class Customer(CustomerBase):
     is_active: bool
     status_changed_at: Optional[datetime] = None
     last_message_content: Optional[str] = None
     last_message_ts: Optional[datetime] = None
+    pending_receipt_media_id: Optional[str] = None
+    pending_receipt_caption: Optional[str] = None
+    pending_receipt_ts: Optional[datetime] = None
+    pending_receipt_for_order_id: Optional[int] = None
     seller_id: Optional[int] = None
     seller: Optional[User] = None
     last_order_summary: Optional[Dict[str, Any]] = None
