@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
 from .. import database, models, schemas, auth
+from ..core import utils
 from datetime import datetime
 
 router = APIRouter(
@@ -68,10 +69,27 @@ def create_sale(
     db.add(db_order)
     db.commit()
     db.refresh(db_order)
+    db.refresh(db_order)
     return db_order
 
+@router.get("/{order_id}", response_model=schemas.Order)
+def get_sale(
+    order_id: int,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth.get_current_active_user)
+):
+    order = db.query(models.Order).filter(models.Order.id == order_id).first()
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+        
+    # Permission check
+    if current_user.role != "admin" and order.seller_id != current_user.id:
+         raise HTTPException(status_code=403, detail="Not authorized to view this order")
+         
+    return order
+
 @router.put("/{order_id}", response_model=schemas.Order)
-def update_sale(
+async def update_sale(
     order_id: int,
     order_update: schemas.OrderUpdate,
     db: Session = Depends(database.get_db),
@@ -133,6 +151,13 @@ def update_sale(
 
     # Apply updates
     for key, value in update_data.items():
+        # Check if we need to download media
+        if key == "receipt_media_id" and value and str(value).startswith("http"):
+            # It's a URL, try to download it
+            # This requires WHATSAPP_TOKEN in .env
+            local_path = await utils.download_whatsapp_image(str(value))
+            value = local_path
+            
         if hasattr(db_order, key):
             setattr(db_order, key, value)
 

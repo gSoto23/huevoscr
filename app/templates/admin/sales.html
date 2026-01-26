@@ -24,51 +24,300 @@
 </div>
 
 <div class="card">
-    <h3>Historial de Órdenes</h3>
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+        <h3>Historial de Órdenes</h3>
+        <input type="text" id="searchInput" onkeyup="filterOrders()" placeholder="Buscar por cliente, ID o vendedor..."
+            style="padding: 8px; border-radius: 6px; border: 1px solid #ccc; width: 300px;">
+    </div>
     <div class="table-responsive">
         <table id="salesTable">
             <thead>
                 <tr>
-                    <th>ID</th>
-                    <th>Cliente</th>
-                    <th>Vendedor</th>
-                    <th>Cant.</th>
-                    <th>Monto</th>
-                    <th>Fecha</th>
+                    <th style="cursor:pointer;" onclick="sortTable('id')">ID ↕</th>
+                    <th style="cursor:pointer;" onclick="sortTable('customer')">Cliente ↕</th>
+                    <th style="cursor:pointer;" onclick="sortTable('quantity')">Cant. ↕</th>
+                    <th style="cursor:pointer;" onclick="sortTable('total')">Monto ↕</th>
+                    <th>Entrega</th>
+                    <th style="cursor:pointer;" onclick="sortTable('seller')">Vendedor ↕</th>
+                    <th style="cursor:pointer;" onclick="sortTable('status')">Estado ↕</th>
+                    <th style="cursor:pointer;" onclick="sortTable('date')">Fecha Registro ↕</th>
                 </tr>
             </thead>
             <tbody></tbody>
         </table>
+    </div>
+    <!-- Pagination Controls -->
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px;">
+        <span id="pageInfo" style="font-weight: bold;">Página 1</span>
+        <div>
+            <button onclick="changePage(-1)" class="btn-primary"
+                style="padding: 5px 15px; font-size: 0.9rem;">Anterior</button>
+            <button onclick="changePage(1)" class="btn-primary"
+                style="padding: 5px 15px; font-size: 0.9rem;">Siguiente</button>
+        </div>
+    </div>
+</div>
+
+<!-- Receipt Modal -->
+<div id="receiptModal" class="modal"
+    style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); align-items:center; justify-content:center; z-index:1000;">
+    <div style="background:white; padding:20px; border-radius:8px; max-width:500px; width:90%; position:relative;">
+        <span onclick="closeReceiptModal()"
+            style="position:absolute; top:10px; right:15px; cursor:pointer; font-size:1.5rem;">&times;</span>
+        <h4>Comprobante de Pago</h4>
+        <div id="receiptContent" style="margin-top:15px;">
+            <div
+                style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; background: #f9f9f9; padding: 10px; border-radius: 4px;">
+                <div><strong>Orden ID:</strong> <span id="receiptOrderId"></span></div>
+                <div><strong>Total:</strong> <span id="receiptTotal"></span></div>
+                <div style="grid-column: span 2;"><strong>Fecha Reporte:</strong> <span id="receiptDate"></span></div>
+            </div>
+            <div id="receiptImageContainer" style="margin-top:10px; text-align:center;"></div>
+        </div>
+        <div style="margin-top:20px; display: flex; gap: 10px;">
+            <a id="btnContactWhatsApp" href="#" target="_blank" class="btn-primary"
+                style="background-color: #25D366; color: white; display: none; text-decoration: none; flex: 1; text-align: center; justify-content: center; align-items: center; padding: 4px 10px; font-size: 0.8rem;">Contactar
+                Cliente 💬</a>
+            <button id="btnConfirmPayment" onclick="confirmPaymentFromModal()" class="btn-primary"
+                style="display: none; flex: 1; padding: 4px 10px; font-size: 0.8rem;">Marcar como Pagado</button>
+            <button onclick="closeReceiptModal()" class="btn-primary"
+                style="background-color: #6c757d; color: white; flex: 1; padding: 4px 10px; font-size: 0.8rem;">Cerrar</button>
+        </div>
     </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
+    let allOrders = [];
+    let currentFilteredData = []; // Store filtered/sorted data for pagination
+    let currentPage = 1;
+    const rowsPerPage = 50;
+    let currentSort = { column: 'id', dir: 'desc' };
+
     async function loadSales() {
         try {
             const res = await fetch('/sales/', { headers: authHeaders() });
-            const sales = await res.json();
-            const tbody = document.querySelector('#salesTable tbody');
-            tbody.innerHTML = '';
+            allOrders = await res.json();
 
-            sales.reverse().forEach(s => {
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td>${s.id}</td>
-                    <td>${s.customer_id}</td>
-                    <td>${s.seller_id ? s.seller_id : '-'}</td>
-                    <td>${s.quantity}</td>
-                    <td>₡${s.total_amount}</td>
-                    <td>${new Date(s.created_at).toLocaleDateString()}</td>
-                `;
-                tbody.appendChild(tr);
-            });
+            // Default Sort: ID Descending
+            allOrders.sort((a, b) => b.id - a.id);
+
+            currentFilteredData = allOrders; // Init with full data
+            renderTable();
         } catch (e) {
             console.error(e);
         }
     }
+
+    function renderTable() {
+        // Pagination slicing
+        const start = (currentPage - 1) * rowsPerPage;
+        const end = start + rowsPerPage;
+        const pageData = currentFilteredData.slice(start, end);
+        const totalPages = Math.ceil(currentFilteredData.length / rowsPerPage);
+
+        // Update Info
+        document.getElementById('pageInfo').innerText = `Página ${currentPage} de ${totalPages || 1} (Total: ${currentFilteredData.length})`;
+
+        const tbody = document.querySelector('#salesTable tbody');
+        tbody.innerHTML = '';
+
+        pageData.forEach(s => {
+            const tr = document.createElement('tr');
+            const isPaid = s.status === 'paid';
+            const statusPill = isPaid
+                ? '<span style="background-color: #198754; color: white; padding: 4px 8px; border-radius: 12px; font-size: 0.85rem;">Pagado</span>'
+                : '<span style="background-color: #ffc107; color: #333; padding: 4px 8px; border-radius: 12px; font-size: 0.85rem;">Pendiente</span>';
+
+            // Show receipt info if available
+            let receiptInfo = '';
+            if (s.has_attachment) {
+                const safeMedia = (s.receipt_media_id || '').replace(/"/g, '&quot;');
+                const dateStr = new Date(s.created_at).toLocaleDateString() + ' ' + new Date(s.created_at).toLocaleTimeString();
+
+                const custName = (s.customer ? s.customer.name : 'Cliente').replace(/'/g, "\\'");
+                const custPhone = s.customer_id; // WhatsApp ID is the phone
+
+                receiptInfo = ` <span title="Ver comprobante" style="cursor:pointer;" onclick="openReceiptModal('${safeMedia}', '${s.id}', '${s.total_amount}', '${dateStr}', '${s.status}', '${custName}', '${custPhone}')">📎</span>`;
+            }
+
+            // Customer Info
+            const customerName = s.customer ? s.customer.name : 'Desconocido';
+            const customerId = s.customer_id || '';
+            const customerHtml = `<div><strong>${customerName}</strong></div><div style="font-size:0.8rem; color:#666;">${customerId}</div>`;
+
+            // Delivery Info
+            const deliveryDate = s.delivery_date ? new Date(s.delivery_date).toLocaleDateString() : '-';
+            const deliveryDay = s.delivery_day || '-';
+            const deliveryHtml = `<div>${deliveryDay}</div><div style="font-size:0.8rem; color:#666;">${deliveryDate}</div>`;
+
+            // Seller Info
+            const sellerName = s.seller ? s.seller.username : (s.seller_id || '-');
+
+            tr.innerHTML = `
+                <td>${s.id}</td>
+                <td>${customerHtml}</td>
+                <td>${s.quantity}</td>
+                <td>₡${s.total_amount} ${receiptInfo}</td>
+                <td>${deliveryHtml}</td>
+                <td>${sellerName}</td>
+                <td>${statusPill}</td>
+                <td>${new Date(s.created_at).toLocaleDateString()}</td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    function changePage(delta) {
+        const totalPages = Math.ceil(currentFilteredData.length / rowsPerPage);
+        const newPage = currentPage + delta;
+
+        if (newPage >= 1 && newPage <= totalPages) {
+            currentPage = newPage;
+            renderTable();
+        }
+    }
+
+    function filterOrders() {
+        const query = document.getElementById('searchInput').value.toLowerCase();
+        currentFilteredData = allOrders.filter(o => {
+            const name = o.customer ? o.customer.name.toLowerCase() : '';
+            const id = o.id.toString();
+            const seller = o.seller_id ? o.seller_id.toString() : '';
+            return name.includes(query) || id.includes(query) || seller.includes(query);
+        });
+        currentPage = 1; // Reset to page 1 on filter
+        renderTable();
+    }
+
+    function sortTable(column) {
+        // Toggle direction if clicking same column
+        if (currentSort.column === column) {
+            currentSort.dir = currentSort.dir === 'asc' ? 'desc' : 'asc';
+        } else {
+            currentSort.column = column;
+            currentSort.dir = 'asc';
+        }
+
+        // Sort the filtered data directly
+        currentFilteredData.sort((a, b) => {
+            let valA, valB;
+
+            switch (column) {
+                case 'id': valA = a.id; valB = b.id; break;
+                case 'customer': valA = a.customer ? a.customer.name : ''; valB = b.customer ? b.customer.name : ''; break;
+                case 'seller': valA = a.seller_id || 0; valB = b.seller_id || 0; break;
+                case 'quantity': valA = a.quantity; valB = b.quantity; break;
+                case 'total': valA = a.total_amount; valB = b.total_amount; break;
+                case 'date': valA = new Date(a.created_at); valB = new Date(b.created_at); break;
+                case 'status': valA = a.status; valB = b.status; break;
+                default: return 0;
+            }
+
+            if (valA < valB) return currentSort.dir === 'asc' ? -1 : 1;
+            if (valA > valB) return currentSort.dir === 'asc' ? 1 : -1;
+            return 0;
+        });
+
+        currentPage = 1;
+        renderTable();
+    }
+
     loadSales();
+
+    let currentModalOrderId = null;
+
+    function openReceiptModal(mediaId, orderId, total, date, status, custName, custPhone) {
+        currentModalOrderId = orderId;
+        document.getElementById('receiptOrderId').innerText = '#' + orderId;
+        document.getElementById('receiptTotal').innerText = '₡' + total;
+        document.getElementById('receiptDate').innerText = date;
+
+        // Configure WhatsApp Button
+        const btnContact = document.getElementById('btnContactWhatsApp');
+        if (custPhone) {
+            const msg = `Hola ${custName} te escribo en relación al pago del pedido ${orderId}, el asistente nos compartio un comprobante que no corresponde al pago. Nos ayudas a confirmar el pago por favor?`;
+            const url = `https://wa.me/${custPhone}?text=${encodeURIComponent(msg)}`;
+            btnContact.href = url;
+            btnContact.style.display = 'inline-block';
+        } else {
+            btnContact.style.display = 'none';
+        }
+
+        // Show/Hide "Mark as Paid" button
+        const btnPay = document.getElementById('btnConfirmPayment');
+        if (status === 'paid') {
+            btnPay.style.display = 'none';
+        } else {
+            btnPay.style.display = 'inline-block';
+        }
+
+        const imgContainer = document.getElementById('receiptImageContainer');
+        imgContainer.innerHTML = ''; // Clear previous content
+
+        if (mediaId && (mediaId.startsWith('http://') || mediaId.startsWith('https://') || mediaId.startsWith('/static'))) {
+            // It's a URL, try to render it. Added max-height constraint.
+            imgContainer.innerHTML = `
+                <img src="${mediaId}" alt="Comprobante" style="max-width:100%; max-height:400px; object-fit:contain; border-radius:4px; box-shadow:0 2px 4px rgba(0,0,0,0.1); margin-bottom:10px;">
+                <br>
+                <a href="${mediaId}" target="_blank" class="btn-primary" style="text-decoration:none; padding:5px 10px; font-size:0.9rem;">Abrir original ↗</a>
+             `;
+        } else if (mediaId) {
+            // It's likely an ID
+            imgContainer.innerHTML = `
+                <div style="background:#f8f9fa; padding:15px; border-radius:8px; border:1px dashed #ccc; color:#666;">
+                    <p style="margin-bottom:5px;"><strong>Vista previa no disponible</strong></p>
+                    <p style="font-size:0.9rem; margin:0;">El valor recibido parece ser un ID de WhatsApp ("${mediaId}").<br>
+                    Para ver la imagen aquí, configura tu bot para enviar la <strong>URL pública</strong> del archivo.</p>
+                </div>
+             `;
+        }
+
+        const modal = document.getElementById('receiptModal');
+        modal.style.display = 'flex';
+    }
+
+    async function confirmPaymentFromModal() {
+        if (!currentModalOrderId) return;
+
+        await markAsPaid(currentModalOrderId);
+        closeReceiptModal();
+    }
+
+    function closeReceiptModal() {
+        document.getElementById('receiptModal').style.display = 'none';
+    }
+
+    // Close on outside click
+    window.onclick = function (event) {
+        const modal = document.getElementById('receiptModal');
+        if (event.target == modal) {
+            closeReceiptModal();
+        }
+    }
+
+    async function markAsPaid(id) {
+        if (!confirm('¿Marcar pedido como PAGADO?')) return;
+        try {
+            const res = await fetch(`/sales/${id}`, {
+                method: 'PUT',
+                headers: {
+                    ...authHeaders(),
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ status: 'paid' })
+            });
+            if (res.ok) {
+                loadSales();
+            } else {
+                alert('Error actualizando pedido');
+            }
+        } catch (e) {
+            console.error(e);
+            alert('Error de conexión');
+        }
+    }
 
     async function loadDistribution() {
         const day = document.getElementById('dayFilter').value;
