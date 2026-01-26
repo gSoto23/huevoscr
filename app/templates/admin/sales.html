@@ -35,12 +35,12 @@
                 <tr>
                     <th style="cursor:pointer;" onclick="sortTable('id')">ID ↕</th>
                     <th style="cursor:pointer;" onclick="sortTable('customer')">Cliente ↕</th>
-                    <th style="cursor:pointer;" onclick="sortTable('seller')">Vendedor ↕</th>
                     <th style="cursor:pointer;" onclick="sortTable('quantity')">Cant. ↕</th>
                     <th style="cursor:pointer;" onclick="sortTable('total')">Monto ↕</th>
-                    <th style="cursor:pointer;" onclick="sortTable('date')">Fecha ↕</th>
-                    <th>Pago</th>
+                    <th>Entrega</th>
+                    <th style="cursor:pointer;" onclick="sortTable('seller')">Vendedor ↕</th>
                     <th style="cursor:pointer;" onclick="sortTable('status')">Estado ↕</th>
+                    <th style="cursor:pointer;" onclick="sortTable('date')">Fecha Registro ↕</th>
                 </tr>
             </thead>
             <tbody></tbody>
@@ -142,15 +142,28 @@
                 receiptInfo = ` <span title="Ver comprobante" style="cursor:pointer;" onclick="openReceiptModal('${safeMedia}', '${s.id}', '${s.total_amount}', '${dateStr}', '${s.status}', '${custName}', '${custPhone}')">📎</span>`;
             }
 
+            // Customer Info
+            const customerName = s.customer ? s.customer.name : 'Desconocido';
+            const customerId = s.customer_id || '';
+            const customerHtml = `<div><strong>${customerName}</strong></div><div style="font-size:0.8rem; color:#666;">${customerId}</div>`;
+            
+            // Delivery Info
+            const deliveryDate = s.delivery_date ? new Date(s.delivery_date).toLocaleDateString() : '-';
+            const deliveryDay = s.delivery_day || '-';
+            const deliveryHtml = `<div>${deliveryDay}</div><div style="font-size:0.8rem; color:#666;">${deliveryDate}</div>`;
+
+            // Seller Info
+            const sellerName = s.seller ? s.seller.username : (s.seller_id || '-');
+
             tr.innerHTML = `
                 <td>${s.id}</td>
-                <td>${s.customer ? s.customer.name : s.customer_id}</td>
-                <td>${s.seller ? s.seller.username : (s.seller_id || '-')}</td>
+                <td>${customerHtml}</td>
                 <td>${s.quantity}</td>
-                <td>₡${s.total_amount}</td>
-                <td>${new Date(s.created_at).toLocaleDateString()}</td>
-                <td>${s.payment_method || '-'} ${receiptInfo}</td>
+                <td>₡${s.total_amount} ${receiptInfo}</td>
+                <td>${deliveryHtml}</td>
+                <td>${sellerName}</td>
                 <td>${statusPill}</td>
+                <td>${new Date(s.created_at).toLocaleDateString()}</td>
             `;
             tbody.appendChild(tr);
         });
