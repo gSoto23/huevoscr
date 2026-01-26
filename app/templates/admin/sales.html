@@ -76,12 +76,12 @@
         </div>
         <div style="margin-top:20px; display: flex; gap: 10px;">
             <a id="btnContactWhatsApp" href="#" target="_blank" class="btn-primary"
-                style="background-color: #25D366; color: white; display: none; text-decoration: none; flex: 1; text-align: center; justify-content: center; align-items: center; padding: 8px; font-size: 0.9rem;">Contactar
+                style="background-color: #25D366; color: white; display: none; text-decoration: none; flex: 1; text-align: center; justify-content: center; align-items: center; padding: 4px 10px; font-size: 0.8rem;">Contactar
                 Cliente 💬</a>
             <button id="btnConfirmPayment" onclick="confirmPaymentFromModal()" class="btn-primary"
-                style="display: none; flex: 1; padding: 8px; font-size: 0.9rem;">Marcar como Pagado</button>
+                style="display: none; flex: 1; padding: 4px 10px; font-size: 0.8rem;">Marcar como Pagado</button>
             <button onclick="closeReceiptModal()" class="btn-primary"
-                style="background-color: #6c757d; color: white; flex: 1; padding: 8px; font-size: 0.9rem;">Cerrar</button>
+                style="background-color: #6c757d; color: white; flex: 1; padding: 4px 10px; font-size: 0.8rem;">Cerrar</button>
         </div>
     </div>
 </div>
@@ -146,7 +146,7 @@
             const customerName = s.customer ? s.customer.name : 'Desconocido';
             const customerId = s.customer_id || '';
             const customerHtml = `<div><strong>${customerName}</strong></div><div style="font-size:0.8rem; color:#666;">${customerId}</div>`;
-            
+
             // Delivery Info
             const deliveryDate = s.delivery_date ? new Date(s.delivery_date).toLocaleDateString() : '-';
             const deliveryDay = s.delivery_day || '-';
