@@ -32,6 +32,7 @@ class Customer(Base):
     # Context for AI Agent
     last_message_content = Column(Text, nullable=True)
     last_message_ts = Column(DateTime, nullable=True)
+    n8n_context = Column(Text, nullable=True)
     
     # Pending Receipt Context
     pending_receipt_media_id = Column(String, nullable=True)

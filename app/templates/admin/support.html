@@ -54,6 +54,7 @@
             if (!res.ok) throw new Error('Error loading sales');
 
             const sales = await res.json();
+            salesDataCache = sales; // Cache for context modal
 
             // Sort by ID desc (newest first) or Date desc
             sales.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
@@ -102,6 +103,7 @@
                     <td>
                         ${s.quantity} cartones<br>
                         <span style="font-size:0.8rem; color:#666;">${s.payment_method || '-'}</span>
+                        ${(s.customer && s.customer.n8n_context) ? `<span title="Ver contexto AI" style="cursor:pointer; margin-left:5px; color:#0d6efd;" onclick="openContextModal('${s.id}')">🤖</span>` : ''}
                     </td>
                     <td>${total}</td>
                     <td>
@@ -123,6 +125,45 @@
         }
     }
 
+    function openContextModal(id) {
+        const sale = salesDataCache.find(s => s.id == id);
+        if (!sale || !sale.customer || !sale.customer.n8n_context) return;
+
+        document.getElementById('contextBody').innerText = sale.customer.n8n_context;
+        document.getElementById('contextModal').style.display = 'flex';
+    }
+
+    function closeContextModal() {
+        document.getElementById('contextModal').style.display = 'none';
+    }
+
+    // Close on outside click
+    window.onclick = function (event) {
+        const modal = document.getElementById('contextModal');
+        if (event.target == modal) {
+            closeContextModal();
+        }
+    }
+
+    let salesDataCache = []; // Store for modal access
+
     loadSales();
 </script>
+
+<!-- Context Modal -->
+<div id="contextModal" class="modal"
+    style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); align-items:center; justify-content:center; z-index:2000;">
+    <div
+        style="background:white; padding:20px; border-radius:8px; max-width:600px; width:90%; position:relative; max-height: 80vh; overflow-y: auto;">
+        <span onclick="closeContextModal()"
+            style="position:absolute; top:10px; right:15px; cursor:pointer; font-size:1.5rem;">&times;</span>
+        <h4>Contexto de la Orden (IA)</h4>
+        <div id="contextBody"
+            style="margin-top:15px; white-space: pre-wrap; background: #f4f4f4; padding: 15px; border-radius: 5px; font-family: monospace; font-size: 0.85rem;">
+        </div>
+        <div style="margin-top:20px; text-align: right;">
+            <button onclick="closeContextModal()" class="btn-primary">Cerrar</button>
+        </div>
+    </div>
+</div>
 {% endblock %}

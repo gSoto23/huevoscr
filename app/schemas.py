@@ -48,12 +48,14 @@ class CustomerUpdate(BaseModel):
     pending_receipt_caption: Optional[str] = None
     pending_receipt_ts: Optional[datetime] = None
     pending_receipt_for_order_id: Optional[int] = None
+    n8n_context: Optional[str] = None
 
 class Customer(CustomerBase):
     is_active: bool
     status_changed_at: Optional[datetime] = None
     last_message_content: Optional[str] = None
     last_message_ts: Optional[datetime] = None
+    n8n_context: Optional[str] = None
     pending_receipt_media_id: Optional[str] = None
     pending_receipt_caption: Optional[str] = None
     pending_receipt_ts: Optional[datetime] = None
@@ -84,6 +86,7 @@ class OrderCreate(OrderBase):
     delivery_date: Optional[str] = None # Input as string, parsed in API
     delivery_status: Optional[str] = None
     seller_id: Optional[int] = None
+    n8n_context: Optional[str] = None
 
 class OrderUpdate(BaseModel):
     quantity: Optional[int] = None
@@ -102,6 +105,7 @@ class OrderUpdate(BaseModel):
     has_attachment: Optional[bool] = None
     receipt_media_id: Optional[str] = None
     receipt_caption: Optional[str] = None
+    n8n_context: Optional[str] = None
 
 class Order(OrderBase):
     id: int

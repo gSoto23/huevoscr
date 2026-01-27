@@ -65,6 +65,13 @@ def create_sale(
     
     sale_data["seller_id"] = real_seller_id
 
+    # 5. Handle n8n_context
+    if "n8n_context" in sale_data:
+        context = sale_data.pop("n8n_context")
+        if context:
+            customer.n8n_context = context
+            # db.add(customer) # Implicitly added via session
+
     db_order = models.Order(**sale_data)
     db.add(db_order)
     db.commit()
@@ -143,6 +150,13 @@ async def update_sale(
         if c_name and db_order.customer:
             db_order.customer.name = c_name
             db.add(db_order.customer) # Mark as modified
+
+    # 5. Handle 'n8n_context' -> Update Customer record
+    if "n8n_context" in update_data:
+        context = update_data.pop("n8n_context")
+        if context and db_order.customer:
+            db_order.customer.n8n_context = context
+            db.add(db_order.customer)
 
     # Remove fields that are not in Order model
     # 'phone' is likely customer_id (PK), so we don't update it easily.
