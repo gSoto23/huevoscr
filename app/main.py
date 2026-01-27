@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from .database import engine, Base
-from .api import auth, customers, config, sales, users
+from .api import auth, customers, config, sales, users, conversations
 from .routers import pages
 
 # Create tables
@@ -20,6 +20,7 @@ app.include_router(customers.router)
 app.include_router(config.router)
 app.include_router(sales.router)
 app.include_router(users.router)
+app.include_router(conversations.router)
 app.include_router(pages.router)
 
 
