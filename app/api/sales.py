@@ -65,6 +65,12 @@ def create_sale(
     
     sale_data["seller_id"] = real_seller_id
 
+    # 5. Handle n8n_context - REMOVED to prevent overwrite
+    if "n8n_context" in sale_data:
+        # We ignore it now, relying on /conversations endpoint
+        # content = sale_data.pop("n8n_context")
+         del sale_data["n8n_context"]
+
     db_order = models.Order(**sale_data)
     db.add(db_order)
     db.commit()
@@ -143,6 +149,10 @@ async def update_sale(
         if c_name and db_order.customer:
             db_order.customer.name = c_name
             db.add(db_order.customer) # Mark as modified
+
+    # 5. Handle 'n8n_context' -> REMOVED
+    if "n8n_context" in update_data:
+        del update_data["n8n_context"]
 
     # Remove fields that are not in Order model
     # 'phone' is likely customer_id (PK), so we don't update it easily.

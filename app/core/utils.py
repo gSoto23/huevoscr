@@ -7,10 +7,10 @@ from pathlib import Path
 # Configure logging
 logger = logging.getLogger(__name__)
 
-async def download_whatsapp_image(media_url: str) -> str:
+async def download_whatsapp_image(media_url: str, folder: str = "receipts") -> str:
     """
     Downloads media from a WhatsApp URL using the WHATSAPP_TOKEN.
-    Saves it to app/static/receipts and returns the local relative path.
+    Saves it to app/static/{folder} and returns the local relative path.
     If download fails, returns the original URL.
     """
     token = os.getenv("WHATSAPP_TOKEN")
@@ -20,7 +20,7 @@ async def download_whatsapp_image(media_url: str) -> str:
 
     try:
         # Create directory if not exists
-        upload_dir = Path("app/static/receipts")
+        upload_dir = Path(f"app/static/{folder}")
         upload_dir.mkdir(parents=True, exist_ok=True)
 
         async with httpx.AsyncClient() as client:
@@ -45,7 +45,7 @@ async def download_whatsapp_image(media_url: str) -> str:
                     f.write(response.content)
                 
                 logger.info(f"Downloaded WhatsApp media to {file_path}")
-                return f"/static/receipts/{filename}"
+                return f"/static/{folder}/{filename}"
             else:
                 logger.error(f"Failed to download media. Status: {response.status_code}, URL: {media_url}")
                 return media_url

@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from .database import engine, Base
-from .api import auth, customers, config, sales, users
+from .api import auth, customers, config, sales, users, conversations
 from .routers import pages
 
 # Create tables
@@ -20,6 +20,7 @@ app.include_router(customers.router)
 app.include_router(config.router)
 app.include_router(sales.router)
 app.include_router(users.router)
+app.include_router(conversations.router)
 app.include_router(pages.router)
 
 
@@ -35,3 +36,11 @@ async def read_root(request: Request):
 @app.get("/health")
 def health_check():
     return {"status": "ok"}
+
+@app.get("/privacy-policy")
+async def privacy_policy(request: Request):
+    return templates.TemplateResponse("privacy_policy.html", {"request": request})
+
+@app.get("/terms-of-service")
+async def terms_of_service(request: Request):
+    return templates.TemplateResponse("terms_of_service.html", {"request": request})

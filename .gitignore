@@ -1,5 +1,28 @@
-venv/
+# Python
 __pycache__/
-*.db
+*.py[cod]
+*$py.class
+venv/
 .env
+
+# Database
+*.db
+*.sqlite3
+
+# Logs and Media (Local)
+logs/
 receipts/
+app/static/receipts/*
+!app/static/receipts/.gitkeep
+app/static/logs/media/*
+!app/static/logs/media/.gitkeep
+tunnel.log
+
+# IDEs and OS
+.DS_Store
+.vscode/
+.idea/
+
+# Temporary Scripts (Optional - commenting out, user might want them)
+# seed_*.py
+# test_*.py

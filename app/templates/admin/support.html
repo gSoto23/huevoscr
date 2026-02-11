@@ -7,30 +7,28 @@
 
 <div class="card">
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
-        <h3>Historial de Órdenes</h3>
-        <button onclick="loadSales()" class="btn-secondary" style="font-size:0.9rem;">
+        <h3>Historial de Clientes (IA)</h3>
+        <button onclick="loadCustomers()" class="btn-secondary" style="font-size:0.9rem;">
             <i class="fa-solid fa-rotate-right"></i> Refrescar
         </button>
     </div>
 
     <div class="table-responsive">
-        <table id="salesTable">
+        <table id="customersTable">
             <thead>
                 <tr>
                     <th>ID</th>
                     <th>Cliente</th>
-                    <th>Detalles</th>
-                    <th>Monto</th>
-                    <th>Estado</th>
-                    <th>Fecha Entrega</th>
-                    <th>Día Entrega</th>
+                    <th>Dirección</th>
+                    <th>Periodicidad</th>
+                    <th>Defaults</th>
                     <th>Vendedor</th>
-                    <th>Fecha Registro</th>
+                    <th style="text-align:center;">Logs IA</th>
                 </tr>
             </thead>
             <tbody>
                 <tr>
-                    <td colspan="7" style="text-align:center;">Cargando ventas...</td>
+                    <td colspan="7" style="text-align:center;">Cargando clientes...</td>
                 </tr>
             </tbody>
         </table>
@@ -40,79 +38,66 @@
 
 {% block scripts %}
 <script>
-    async function loadSales() {
-        const tbody = document.querySelector('#salesTable tbody');
+    let customersDataCache = [];
+
+    async function loadCustomers() {
+        const tbody = document.querySelector('#customersTable tbody');
         try {
-            const res = await fetch('/sales/', { headers: authHeaders() });
+            const res = await fetch('/customers/', { headers: authHeaders() });
 
             if (res.status === 401) {
-                // Token expired
                 window.location.href = '/login';
                 return;
             }
 
-            if (!res.ok) throw new Error('Error loading sales');
+            if (!res.ok) throw new Error('Error loading customers');
 
-            const sales = await res.json();
+            const customers = await res.json();
+            customersDataCache = customers;
 
-            // Sort by ID desc (newest first) or Date desc
-            sales.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+            // Sort by name or recent activity? Let's sort by recent activity if available, else name
+            customers.sort((a, b) => {
+                const dateA = a.last_message_ts ? new Date(a.last_message_ts) : new Date(0);
+                const dateB = b.last_message_ts ? new Date(b.last_message_ts) : new Date(0);
+                return dateB - dateA; // Newest activity first
+            });
 
             tbody.innerHTML = '';
 
-            if (sales.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;">No hay ventas registradas.</td></tr>';
+            if (customers.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;">No hay clientes registrados.</td></tr>';
                 return;
             }
 
-            sales.forEach(s => {
+            customers.forEach(c => {
                 const tr = document.createElement('tr');
-                const date = new Date(s.created_at).toLocaleString();
-                const total = new Intl.NumberFormat('es-CR', { style: 'currency', currency: 'CRC' }).format(s.total_amount);
-
-                // Status Badge Logic
-                let statusColor = '#666';
-                if (s.status === 'pending') statusColor = 'orange';
-                if (s.status === 'confirmed') statusColor = 'green';
-                if (s.status === 'paid') statusColor = 'blue';
-                if (s.status === 'delivered') statusColor = 'purple';
-                if (s.status === 'cancelled') statusColor = 'red';
-
-                // Parsing delivery
-                let deliveryDate = '-';
-                if (s.delivery_date) {
-                    deliveryDate = new Date(s.delivery_date).toLocaleDateString();
-                }
-
-                let deliveryDay = s.delivery_day || '-';
-
-                // Customer Info
-                const custName = s.customer ? s.customer.name : 'Desconocido';
-                const custPhone = s.customer_id;
 
                 // Seller Info
-                const sellerName = s.seller ? s.seller.username : '-';
+                const sellerName = c.seller ? c.seller.username : '<span style="color:#999">N/A</span>';
+
+                // Defaults
+                const defaults = `
+                    <div>${c.cartons_qty} cartones</div>
+                    <div style="font-size:0.8rem; color:#666;">${c.payment_method}</div>
+                `;
+
+                // Context Icon
+                let contextIcon = '-';
+                if (c.n8n_context && c.n8n_context.trim() !== "") {
+                    contextIcon = `<span title="Ver historial de chat" style="cursor:pointer; color:#0d6efd; font-size:1.2rem;" onclick="openContextModal('${c.whatsapp_id}')">🤖</span>`;
+                }
 
                 tr.innerHTML = `
-                    <td>#${s.id}</td>
+                    <td>${c.whatsapp_id}</td>
                     <td>
-                        <div style="font-weight:bold;">${custName}</div>
-                        <div style="font-size:0.8rem; color:#666;">${custPhone}</div>
+                        <div style="font-weight:bold;">${c.name}</div>
+                        <div style="font-size:0.8rem; color:#666;">${c.email || ''}</div>
                     </td>
-                    <td>
-                        ${s.quantity} cartones<br>
-                        <span style="font-size:0.8rem; color:#666;">${s.payment_method || '-'}</span>
-                    </td>
-                    <td>${total}</td>
-                    <td>
-                        <span style="background:${statusColor}; color:white; padding:2px 8px; border-radius:10px; font-size:0.8rem;">
-                            ${s.status}
-                        </span>
-                    </td>
-                    <td>${deliveryDate}</td>
-                    <td>${deliveryDay}</td>
+                    <td style="font-size:0.9rem; max-width:250px;">${c.address}</td>
+                    <td>${c.periodicity}</td>
+                    <td>${defaults}</td>
                     <td>${sellerName}</td>
-                    <td style="font-size:0.85rem;">${date}</td>
+                    <td style="text-align:center;">${contextIcon}</td>
                 `;
                 tbody.appendChild(tr);
             });
@@ -123,6 +108,118 @@
         }
     }
 
-    loadSales();
+    function openContextModal(waId) {
+        const customer = customersDataCache.find(c => c.whatsapp_id === waId);
+        if (!customer || !customer.n8n_context) return;
+
+        // Store current context in a global variable to filter it later
+        currentContextText = customer.n8n_context;
+
+        // Clear filter input
+        document.getElementById('contextFilter').value = '';
+
+        filterContext(); // Render content
+        document.getElementById('contextModal').style.display = 'flex';
+    }
+
+    let currentContextText = "";
+
+    function filterContext() {
+        const filterValue = document.getElementById('contextFilter').value.toLowerCase();
+        const container = document.getElementById('contextBody');
+
+        if (!currentContextText) {
+            container.innerHTML = "";
+            return;
+        }
+
+        const lines = currentContextText.split('\n').reverse();
+        let htmlContent = "";
+
+        lines.forEach(line => {
+            if (!line.trim()) return;
+
+            // 1. Format Timestamp to Bold AND DD/MM/YYYY (visual representation)
+            // Regex to find timestamps like [2024-02-10 12:00:00] OR [10/02/2024 12:00:00]
+
+            // Try to detect YYYY-MM-DD
+            let formattedLine = line.replace(/\[(\d{4})-(\d{2})-(\d{2}) (\d{2}:\d{2}:\d{2})\]/, (match, y, m, d, t) => {
+                return `<b>[${d}/${m}/${y} ${t}]</b>`;
+            });
+
+            // If it didn't match old format, try new format (DD/MM/YYYY)
+            if (formattedLine === line) {
+                formattedLine = line.replace(/\[(\d{2}\/\d{2}\/\d{4} \d{2}:\d{2}:\d{2})\]/, (match, date) => {
+                    return `<b>[${match.slice(1, -1)}]</b>`; // Keep content but bolt it
+                });
+            }
+
+            // 2. Check filter against the VISUAL text (formatted) key
+            // We strip HTML tags to search in pure text (e.g. "10/02/2024 12:00:00 [Cliente]: ...")
+            const textToSearch = formattedLine.replace(/<[^>]*>/g, '').toLowerCase();
+
+            if (filterValue && !textToSearch.includes(filterValue)) {
+                return; // Skip line
+            }
+
+            // Highlight filter match (optional but nice)
+            if (filterValue) {
+                const regex = new RegExp(`(${filterValue})`, 'gi');
+                // Be careful not to break HTML tags we just added. 
+                // Simple approach: apply highlight after bolding? No, messy.
+                // Let's stick to just filtering rows.
+            }
+
+            // 3. Highlight Media Links [MEDIA: /static/...]
+            // We want to turn this into <a href="..." target="_blank">📎 Ver Archivo</a>
+
+            // Regex for [MEDIA: url]
+            const mediaRegex = /\[MEDIA:\s*(.*?)\]/g;
+            htmlContent += `<div>${formattedLine.replace(mediaRegex, (match, url) => {
+                return `<a href="${url}" target="_blank" style="text-decoration:none; font-weight:bold; color: #0d6efd;">📎 Ver Archivo</a>`;
+            })}</div>`;
+        });
+
+        if (htmlContent === "") {
+            container.innerHTML = "<div style='color:#999; text-align:center;'>No se encontraron coincidencias.</div>";
+        } else {
+            container.innerHTML = htmlContent;
+        }
+    }
+
+    function closeContextModal() {
+        document.getElementById('contextModal').style.display = 'none';
+    }
+
+    // Close on outside click
+    window.onclick = function (event) {
+        const modal = document.getElementById('contextModal');
+        if (event.target == modal) {
+            closeContextModal();
+        }
+    }
+
+    loadCustomers();
 </script>
+
+<!-- Context Modal -->
+<div id="contextModal" class="modal"
+    style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); align-items:center; justify-content:center; z-index:2000;">
+    <div
+        style="background:white; padding:20px; border-radius:8px; max-width:600px; width:90%; position:relative; max-height: 80vh; overflow-y: auto;">
+        <span onclick="closeContextModal()"
+            style="position:absolute; top:10px; right:15px; cursor:pointer; font-size:1.5rem;">&times;</span>
+        <h4>Historial de Chat (IA)</h4>
+
+        <input type="text" id="contextFilter" placeholder="Filtrar por fecha o #pedido..." class="form-control"
+            style="margin-bottom: 10px; font-size: 0.9rem;" onkeyup="filterContext()">
+
+        <div id="contextBody"
+            style="margin-top:15px; white-space: pre-wrap; background: #f4f4f4; padding: 15px; border-radius: 5px; font-family: monospace; font-size: 0.85rem; max-height: 60vh; overflow-y: auto;">
+        </div>
+        <div style="margin-top:20px; text-align: right;">
+            <button onclick="closeContextModal()" class="btn-primary">Cerrar</button>
+        </div>
+    </div>
+</div>
 {% endblock %}
