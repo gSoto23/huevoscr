@@ -36,3 +36,11 @@ async def read_root(request: Request):
 @app.get("/health")
 def health_check():
     return {"status": "ok"}
+
+@app.get("/privacy-policy")
+async def privacy_policy(request: Request):
+    return templates.TemplateResponse("privacy_policy.html", {"request": request})
+
+@app.get("/terms-of-service")
+async def terms_of_service(request: Request):
+    return templates.TemplateResponse("terms_of_service.html", {"request": request})
