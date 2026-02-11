@@ -112,8 +112,72 @@
         const customer = customersDataCache.find(c => c.whatsapp_id === waId);
         if (!customer || !customer.n8n_context) return;
 
-        document.getElementById('contextBody').innerText = customer.n8n_context;
+        // Store current context in a global variable to filter it later
+        currentContextText = customer.n8n_context;
+
+        // Clear filter input
+        document.getElementById('contextFilter').value = '';
+
+        filterContext(); // Render content
         document.getElementById('contextModal').style.display = 'flex';
+    }
+
+    let currentContextText = "";
+
+    function filterContext() {
+        const filterValue = document.getElementById('contextFilter').value.toLowerCase();
+        const container = document.getElementById('contextBody');
+
+        if (!currentContextText) {
+            container.innerHTML = "";
+            return;
+        }
+
+        const lines = currentContextText.split('\n');
+        let htmlContent = "";
+
+        lines.forEach(line => {
+            if (!line.trim()) return;
+
+            // 1. Format Timestamp to Bold AND DD/MM/YYYY (visual representation)
+            // Regex to find timestamps like [2024-02-10 12:00:00] OR [10/02/2024 12:00:00]
+
+            // Try to detect YYYY-MM-DD
+            let formattedLine = line.replace(/\[(\d{4})-(\d{2})-(\d{2}) (\d{2}:\d{2}:\d{2})\]/, (match, y, m, d, t) => {
+                return `<b>[${d}/${m}/${y} ${t}]</b>`;
+            });
+
+            // If it didn't match old format, try new format (DD/MM/YYYY)
+            if (formattedLine === line) {
+                formattedLine = line.replace(/\[(\d{2}\/\d{2}\/\d{4} \d{2}:\d{2}:\d{2})\]/, (match, date) => {
+                    return `<b>[${match.slice(1, -1)}]</b>`; // Keep content but bolt it
+                });
+            }
+
+            // 2. Check filter against the VISUAL text (formatted) key
+            // We strip HTML tags to search in pure text (e.g. "10/02/2024 12:00:00 [Cliente]: ...")
+            const textToSearch = formattedLine.replace(/<[^>]*>/g, '').toLowerCase();
+
+            if (filterValue && !textToSearch.includes(filterValue)) {
+                return; // Skip line
+            }
+
+            // Highlight filter match (optional but nice)
+            if (filterValue) {
+                const regex = new RegExp(`(${filterValue})`, 'gi');
+                // Be careful not to break HTML tags we just added. 
+                // Simple approach: apply highlight after bolding? No, messy.
+                // Let's stick to just filtering rows.
+            }
+
+            htmlContent += `<div>${formattedLine}</div>`;
+        });
+
+        if (htmlContent === "") {
+            container.innerHTML = "<div style='color:#999; text-align:center;'>No se encontraron coincidencias.</div>";
+        } else {
+            container.innerHTML = htmlContent;
+        }
     }
 
     function closeContextModal() {
@@ -139,8 +203,12 @@
         <span onclick="closeContextModal()"
             style="position:absolute; top:10px; right:15px; cursor:pointer; font-size:1.5rem;">&times;</span>
         <h4>Historial de Chat (IA)</h4>
+
+        <input type="text" id="contextFilter" placeholder="Filtrar por fecha o #pedido..." class="form-control"
+            style="margin-bottom: 10px; font-size: 0.9rem;" onkeyup="filterContext()">
+
         <div id="contextBody"
-            style="margin-top:15px; white-space: pre-wrap; background: #f4f4f4; padding: 15px; border-radius: 5px; font-family: monospace; font-size: 0.85rem;">
+            style="margin-top:15px; white-space: pre-wrap; background: #f4f4f4; padding: 15px; border-radius: 5px; font-family: monospace; font-size: 0.85rem; max-height: 60vh; overflow-y: auto;">
         </div>
         <div style="margin-top:20px; text-align: right;">
             <button onclick="closeContextModal()" class="btn-primary">Cerrar</button>

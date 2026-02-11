@@ -22,42 +22,27 @@ class ConversationMessage(BaseModel):
     sender: str = Field(..., alias="sender_id")
     direction: str # incoming, outgoing
     timestamp: str 
-    
-    # Allow extra fields like customer_name, recipient_id inside
-    class Config:
-        allow_population_by_field_name = True
-        extra = "ignore" 
-
-class ConversationIngest(BaseModel):
-    # Accept strict List OR strict Dict (single item)
-    conversation_data: Union[List[ConversationMessage], ConversationMessage]
     whatsapp_id: Optional[str] = None
     customer_name: Optional[str] = None
-    timestamp: Optional[str] = None
     
-    @validator("conversation_data", pre=True)
-    def normalize_list(cls, v):
-        if isinstance(v, dict):
-            return [v]
-        return v
-        
-    class Config:
-        allow_population_by_field_name = True
+    # Allow extra fields like customer_name, recipient_id inside
+    model_config = {
+        "populate_by_name": True,
+        "extra": "ignore"
+    }
 
 @router.post("/")
 def ingest_conversation(
-    payload: ConversationIngest,
+    payload: ConversationMessage,
     db: Session = Depends(database.get_db),
     # Require generic token auth (Admin or Seller or just active user)
     # n8n should send Authorization: Bearer <token>
     current_user: models.User = Depends(auth.get_current_active_user)
 ):
     # Normalize data to list
-    messages = payload.conversation_data
-    if not isinstance(messages, list):
-        messages = [messages]
+    messages = [payload]
         
-    # Fallback for ID and Name if missing in top-level but present in first message items (sometimes n8n flattens)
+    # Fallback for ID and Name
     target_wa_id = payload.whatsapp_id
     target_name = payload.customer_name
 
@@ -117,23 +102,30 @@ def ingest_conversation(
             if ts_str.endswith("Z"):
                 ts_str = ts_str.replace("Z", "+00:00")
             dt = datetime.fromisoformat(ts_str)
-            ts_str = dt.strftime("%Y-%m-%d %H:%M:%S")
+            # User requested DDMMYYYY HHMMSS format (interpreted as DD/MM/YYYY)
+            ts_str = dt.strftime("%d/%m/%Y %H:%M:%S")
         except Exception as e:
             pass 
 
         line = f"[{ts_str}] {sender_label}: {msg.content}"
         formatted_log += line + "\n"
 
-    # Append to existing context
-    # Reload logic: If we just created, n8n_context is empty.
-    # If we fetched, it's fresh from DB because of explicit query.
+    # Append to existing context with deduplication
     current_context = customer.n8n_context or ""
     
-    # Add simple separator
-    if current_context and not current_context.endswith("\n"):
-        current_context += "\n"
+    # Check if the new log lines are already present in the current context (end)
+    # Simple check: if formatted_log is already at the end of current_context, skip.
+    # More robust: check each line.
     
-    customer.n8n_context = current_context + formatted_log
+    new_content_to_add = ""
+    for line in formatted_log.strip().split('\n'):
+        if line and line not in current_context:
+             new_content_to_add += line + "\n"
+    
+    if new_content_to_add:
+        if current_context and not current_context.endswith("\n"):
+            current_context += "\n"
+        customer.n8n_context = current_context + new_content_to_add
     
     # Update latest activity timestamps
     customer.last_message_ts = datetime.utcnow()
