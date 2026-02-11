@@ -133,7 +133,7 @@
             return;
         }
 
-        const lines = currentContextText.split('\n');
+        const lines = currentContextText.split('\n').reverse();
         let htmlContent = "";
 
         lines.forEach(line => {
@@ -170,7 +170,14 @@
                 // Let's stick to just filtering rows.
             }
 
-            htmlContent += `<div>${formattedLine}</div>`;
+            // 3. Highlight Media Links [MEDIA: /static/...]
+            // We want to turn this into <a href="..." target="_blank">📎 Ver Archivo</a>
+
+            // Regex for [MEDIA: url]
+            const mediaRegex = /\[MEDIA:\s*(.*?)\]/g;
+            htmlContent += `<div>${formattedLine.replace(mediaRegex, (match, url) => {
+                return `<a href="${url}" target="_blank" style="text-decoration:none; font-weight:bold; color: #0d6efd;">📎 Ver Archivo</a>`;
+            })}</div>`;
         });
 
         if (htmlContent === "") {

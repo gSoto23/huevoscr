@@ -3,7 +3,8 @@ from sqlalchemy.orm import Session
 from typing import List, Optional
 from pydantic import BaseModel
 from datetime import datetime
-from .. import database, models, auth
+from .. import database, models, schemas, auth
+from ..core import utils
 
 router = APIRouter(
     prefix="/conversations",
@@ -22,6 +23,7 @@ class ConversationMessage(BaseModel):
     sender: str = Field(..., alias="sender_id")
     direction: str # incoming, outgoing
     timestamp: str 
+    media_url: Optional[str] = None
     whatsapp_id: Optional[str] = None
     customer_name: Optional[str] = None
     
@@ -32,7 +34,7 @@ class ConversationMessage(BaseModel):
     }
 
 @router.post("/")
-def ingest_conversation(
+async def ingest_conversation(
     payload: ConversationMessage,
     db: Session = Depends(database.get_db),
     # Require generic token auth (Admin or Seller or just active user)
@@ -90,7 +92,7 @@ def ingest_conversation(
         # Actually, if we commit, we lost the lock? No, we didn't have lock.
         # Let's just proceed.
 
-    # 2. Process Messages
+    # Process Messages
     formatted_log = ""
     for msg in messages:
         sender_label = "Cliente" if msg.direction == "incoming" else "Agente"
@@ -107,7 +109,22 @@ def ingest_conversation(
         except Exception as e:
             pass 
 
-        line = f"[{ts_str}] {sender_label}: {msg.content}"
+        content_line = msg.content
+        
+        # Handle Media
+        if msg.media_url:
+            # Download media to /static/logs/media
+            try:
+                # Use default 'receipts' or specific 'logs/media'
+                # User asked for /static/logs/media/...
+                local_path = await utils.download_whatsapp_image(msg.media_url, folder="logs/media")
+                content_line += f" [MEDIA: {local_path}]"
+            except Exception as e:
+                print(f"Error downloading media: {e}")
+                # Fallback to original URL
+                content_line += f" [MEDIA: {msg.media_url}]"
+
+        line = f"[{ts_str}] {sender_label}: {content_line}"
         formatted_log += line + "\n"
 
     # Append to existing context with deduplication
