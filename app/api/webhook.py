@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 VERIFY_TOKEN = os.getenv("WHATSAPP_VERIFY_TOKEN", "my-secret-verify-token")
 
-@router.get("/")
+@router.get("")
 async def verify_webhook(request: Request):
     """
     Handles Meta's Verification Challenge.
@@ -71,7 +71,7 @@ async def forward_to_n8n(message_data: dict, db: Session):
     except Exception as e:
         logger.error(f"Failed to forward to n8n: {e}")
 
-@router.post("/")
+@router.post("")
 async def receive_whatsapp_message(
     request: Request, 
     background_tasks: BackgroundTasks,
