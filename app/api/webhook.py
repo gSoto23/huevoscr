@@ -80,33 +80,36 @@ async def receive_whatsapp_message(
     """
     Receives events from Meta.
     """
-    body = await request.json()
-    
-    # 1. Validate signature (Optional for now, but recommended for Prod)
-    if config.settings.WHATSAPP_APP_SECRET:
-        signature = request.headers.get("X-Hub-Signature-256")
-        if not signature:
-            # For now, warn but allow if no signature provided in dev? 
-            # Or strict:
-            # logger.warning("No signature provided")
-            pass
-        else:
-            # Remove 'sha256=' prefix
-            signature = signature.replace("sha256=", "")
-            # Calculate HMAC
-            expected_signature = hmac.new(
-                bytes(config.settings.WHATSAPP_APP_SECRET, 'latin-1'),
-                msg=await request.body(),
-                digestmod=hashlib.sha256
-            ).hexdigest()
-            
-            if not hmac.compare_digest(signature, expected_signature):
-                logger.error("Invalid Webhook Signature")
-                raise HTTPException(status_code=403, detail="Invalid signature")
-
-
-    # 2. Parse Entry
+    """
+    Receives events from Meta.
+    """
     try:
+        body = await request.json()
+        
+        # 1. Validate signature (Optional for now, but recommended for Prod)
+        if config.settings.WHATSAPP_APP_SECRET:
+            signature = request.headers.get("X-Hub-Signature-256")
+            if not signature:
+                # For now, warn but allow if no signature provided in dev? 
+                # Or strict:
+                # logger.warning("No signature provided")
+                pass
+            else:
+                # Remove 'sha256=' prefix
+                signature = signature.replace("sha256=", "")
+                # Calculate HMAC
+                expected_signature = hmac.new(
+                    bytes(config.settings.WHATSAPP_APP_SECRET, 'latin-1'),
+                    msg=await request.body(),
+                    digestmod=hashlib.sha256
+                ).hexdigest()
+                
+                if not hmac.compare_digest(signature, expected_signature):
+                    logger.error("Invalid Webhook Signature")
+                    raise HTTPException(status_code=403, detail="Invalid signature")
+
+
+        # 2. Parse Entry
         entry = body["entry"][0]
         changes = entry["changes"][0]
         value = changes["value"]
@@ -181,7 +184,11 @@ async def receive_whatsapp_message(
         background_tasks.add_task(forward_to_n8n, msg_data, db)
 
         return {"status": "processed"}
-
-    except (KeyError, IndexError) as e:
-        # Not a standard message or unknown format
-        return {"status": "ignored", "reason": str(e)}
+    
+    except Exception as e:
+        import traceback
+        error_msg = f"ERROR PROCESSING WEBHOOK: {str(e)}\n{traceback.format_exc()}"
+        print(error_msg) # Print to stdout for systemctl status
+        logger.error(error_msg)
+        # Return 200 to Meta to avoid retry loops, but log heavily
+        return {"status": "error", "detail": str(e)}
