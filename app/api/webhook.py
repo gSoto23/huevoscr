@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from .. import database, models
 from ..core import config
 from ..services import conversation as conversation_service
+from ..services.whatsapp import WhatsAppService
 import hashlib
 import hmac
 import httpx
