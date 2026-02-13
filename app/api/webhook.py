@@ -86,8 +86,8 @@ async def receive_whatsapp_message(
     """
     try:
         body = await request.json()
-        print(f"📩 WEBHOOK BODY RECEIVED: {json.dumps(body, indent=2)}")
-        
+        print(f"📩 WEBHOOK BODY RECEIVED: {json.dumps(body, indent=2)}", flush=True)
+
         # 1. Validate signature (Optional for now, but recommended for Prod)
         if config.settings.WHATSAPP_APP_SECRET:
             signature = request.headers.get("X-Hub-Signature-256")
