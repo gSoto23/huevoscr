@@ -28,15 +28,16 @@ async def download_whatsapp_image(media_url: str, folder: str = "receipts") -> s
             response = await client.get(media_url, headers=headers, timeout=30.0)
 
             if response.status_code == 200:
-                # Determine extension (default to .jpg if unknown)
-                content_type = response.headers.get("content-type", "")
-                ext = ".jpg"
-                if "image/png" in content_type:
-                    ext = ".png"
-                elif "image/jpeg" in content_type:
-                    ext = ".jpg"
-                elif "application/pdf" in content_type:
-                    ext = ".pdf"
+                import mimetypes
+                # Guess extension
+                ext = mimetypes.guess_extension(content_type)
+                if not ext:
+                    # Fallbacks
+                    if "image" in content_type: ext = ".jpg"
+                    elif "audio" in content_type: ext = ".ogg"
+                    elif "video" in content_type: ext = ".mp4"
+                    elif "pdf" in content_type: ext = ".pdf"
+                    else: ext = ".bin"
                 
                 filename = f"{uuid.uuid4()}{ext}"
                 file_path = upload_dir / filename
