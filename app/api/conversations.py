@@ -70,89 +70,38 @@ async def ingest_conversation(
              # Let's raise 400
              raise HTTPException(status_code=400, detail="Missing whatsapp_id")
 
-    # 1. Find Customer with Row Lock to prevent race conditions
-    # Note: with_for_update() might not work on all DBs (like SQLite) as expected, but good practice.
-    customer = db.query(models.Customer).filter(models.Customer.whatsapp_id == target_wa_id).with_for_update().first()
+    # Process Messages via Service
+    from ..services import conversation as conversation_service
     
-    if not customer:
-        # Create Lead if not exists
-        customer = models.Customer(
-            whatsapp_id=target_wa_id,
-            name=target_name or "New Lead",
-            address="Unknown - From Chat",
-            periodicity="Semanal", # Default
-            cartons_qty=1,
-            payment_method="Efectivo",
-            n8n_context="" # Init
-        )
-        db.add(customer)
-        db.commit()      # Commit creation
-        db.refresh(customer)
-        # Re-fetch with lock just to be sure if we are paranoid, but newly created unique ID is safe for this trans usually.
-        # Actually, if we commit, we lost the lock? No, we didn't have lock.
-        # Let's just proceed.
-
-    # Process Messages
-    formatted_log = ""
-    for msg in messages:
-        sender_label = "Cliente" if msg.direction == "incoming" else "Agente"
-        
-        # Parse timestamp
-        ts_str = msg.timestamp
-        try:
-            # Handle ISO 8601 with Z
-            if ts_str.endswith("Z"):
-                ts_str = ts_str.replace("Z", "+00:00")
-            dt = datetime.fromisoformat(ts_str)
-            # User requested DDMMYYYY HHMMSS format (interpreted as DD/MM/YYYY)
-            ts_str = dt.strftime("%d/%m/%Y %H:%M:%S")
-        except Exception as e:
-            pass 
-
-        content_line = msg.content
-        
-        # Handle Media
-        if msg.media_url:
-            # Download media to /static/logs/media
-            try:
-                # Use default 'receipts' or specific 'logs/media'
-                # User asked for /static/logs/media/...
-                local_path = await utils.download_whatsapp_image(msg.media_url, folder="logs/media")
-                content_line += f" [MEDIA: {local_path}]"
-            except Exception as e:
-                print(f"Error downloading media: {e}")
-                # Fallback to original URL
-                content_line += f" [MEDIA: {msg.media_url}]"
-
-        line = f"[{ts_str}] {sender_label}: {content_line}"
-        formatted_log += line + "\n"
-
-    # Append to existing context with deduplication
-    current_context = customer.n8n_context or ""
+    # Check if payload needs to be converted to dict or if service handles Pydantic
+    # Service handles Pydantic object if fields match
     
-    # Check if the new log lines are already present in the current context (end)
-    # Simple check: if formatted_log is already at the end of current_context, skip.
-    # More robust: check each line.
+    # We need to ensure we pass the whatsapp_id into the processing if it's not in the message body
+    # But the service extracts it from the first message content?
+    # Actually, legacy payload might have whatsapp_id at top level, which Pydantic model captures.
+    # The dictionary passed to service should ideally preserve this.
+    # Let's create a list of dicts with the top-level info injected if missing from message
     
-    new_content_to_add = ""
-    for line in formatted_log.strip().split('\n'):
-        if line and line not in current_context:
-             new_content_to_add += line + "\n"
+    msgs_as_dicts = []
+    # Convert Pydantic to dict
+    payload_dict = payload.model_dump(by_alias=True)
     
-    if new_content_to_add:
-        if current_context and not current_context.endswith("\n"):
-            current_context += "\n"
-        customer.n8n_context = current_context + new_content_to_add
+    # Pydantic alias trickery might hide fields, let's be careful.
+    # payload.whatsapp_id is available.
     
-    # Update latest activity timestamps
-    customer.last_message_ts = datetime.utcnow()
-    
-    # Update last message content from the latest incoming message
-    last_incoming = next((m for m in reversed(messages) if m.direction == "incoming"), None)
-    if last_incoming:
-        customer.last_message_content = last_incoming.content
+    # Construct a dict that service expects
+    msg_data = {
+        "whatsapp_id": payload.whatsapp_id,
+        "customer_name": payload.customer_name,
+        "direction": payload.direction,
+        "content": payload.content,
+        "timestamp": payload.timestamp,
+        "media_url": payload.media_url,
+        "type": payload.type,
+        "sender": payload.sender
+    }
+    msgs_as_dicts.append(msg_data)
 
-    db.add(customer)
-    db.commit()
+    result = await conversation_service.process_conversation_messages(db, msgs_as_dicts)
 
-    return {"status": "success", "customer_id": customer.whatsapp_id, "messages_added": len(messages), "new_context_len": len(customer.n8n_context)}
+    return result
