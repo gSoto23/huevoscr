@@ -30,9 +30,12 @@
                 <tr>
                     <th style="cursor:pointer" onclick="sortTable('whatsapp_id')">WhatsApp / ID <i
                             class="fa-solid fa-sort"></i></th>
-                    <th style="cursor:pointer" onclick="sortTable('name')">Nombre <i class="fa-solid fa-sort"></i></th>
-                    <th style="cursor:pointer" onclick="sortTable('email')">Email <i class="fa-solid fa-sort"></i></th>
-                    <th style="cursor:pointer" onclick="sortTable('address')">Dirección <i class="fa-solid fa-sort"></i>
+                    <th style="cursor:pointer; min-width: 200px;" onclick="sortTable('name')">Nombre <i
+                            class="fa-solid fa-sort"></i></th>
+                    <th style="cursor:pointer; min-width: 200px;" onclick="sortTable('email')">Email <i
+                            class="fa-solid fa-sort"></i></th>
+                    <th style="cursor:pointer; min-width: 200px;" onclick="sortTable('address')">Dirección <i
+                            class="fa-solid fa-sort"></i>
                     </th>
                     <th>Ubicación</th>
                     <th style="cursor:pointer" onclick="sortTable('payment_method')">Forma de Pago <i
@@ -162,7 +165,7 @@
         const input = document.getElementById('location_pin');
 
         if (!navigator.geolocation) {
-            alert("Geolocalización no soportada");
+            showToast("Geolocalización no soportada", "error");
             return;
         }
 
@@ -179,7 +182,7 @@
             },
             (error) => {
                 console.error(error);
-                alert("Error obteniendo ubicación. Verifique permisos.");
+                showToast("Error obteniendo ubicación. Verifique permisos.", "error");
                 btn.innerHTML = '<i class="fa-solid fa-location-dot"></i>';
                 btn.disabled = false;
             }
@@ -241,7 +244,7 @@
             const data = Object.fromEntries(formData.entries());
 
             if (!/^\d{8,}$/.test(data.whatsapp_id)) {
-                alert('El WhatsApp debe tener al menos 8 dígitos');
+                showToast('El WhatsApp debe tener al menos 8 dígitos', 'error');
                 return;
             }
 
@@ -262,7 +265,7 @@
                 if (res.ok) {
                     closeCreateModal();
                     loadCustomers();
-                    alert('Cliente guardado exitosamente');
+                    showToast('Cliente guardado exitosamente', 'success');
                 } else {
                     const err = await res.json();
                     if (err.detail && err.detail.includes("ya existe")) {
@@ -275,15 +278,15 @@
                         if (putRes.ok) {
                             closeCreateModal();
                             loadCustomers();
-                            alert('Cliente actualizado exitosamente');
+                            showToast('Cliente actualizado exitosamente', 'success');
                             return;
                         }
                     }
-                    alert('Error: ' + (err.detail || 'No se pudo crear'));
+                    showToast('Error: ' + (err.detail || 'No se pudo crear'), 'error');
                 }
             } catch (e) {
                 console.error(e);
-                alert('Error de conexión');
+                showToast('Error de conexión', 'error');
             }
         });
     }
@@ -437,7 +440,7 @@
     }
 
     async function deleteCustomer(waId) {
-        if (!confirm(`¿Estás seguro de ELIMINAR al cliente ${waId}? Esto borrará también sus pedidos y es irreversible.`)) return;
+        if (!await showConfirm(`¿Estás seguro de ELIMINAR al cliente ${waId}? Esto borrará también sus pedidos y es irreversible.`)) return;
 
         try {
             const res = await fetch(`/customers/${waId}`, {
@@ -446,15 +449,15 @@
             });
 
             if (res.ok) {
-                alert('Cliente eliminado');
+                showToast('Cliente eliminado', 'success');
                 loadCustomers();
             } else {
                 const err = await res.json();
-                alert('Error: ' + (err.detail || 'No se pudo eliminar'));
+                showToast('Error: ' + (err.detail || 'No se pudo eliminar'), 'error');
             }
         } catch (e) {
             console.error(e);
-            alert('Error de conexión');
+            showToast('Error de conexión', 'error');
         }
     }
 
@@ -471,7 +474,7 @@
             if (res.ok) {
                 loadCustomers(); // Reload to show new timestamp
             } else {
-                alert('Error al actualizar estado');
+                showToast('Error al actualizar estado', 'error');
                 loadCustomers();
             }
         } catch (e) {
@@ -534,8 +537,9 @@
                 if (res.ok) {
                     closeModal();
                     loadCustomers();
+                    showToast('Asignado correctamente', 'success');
                 } else {
-                    alert('Error al asignar');
+                    showToast('Error al asignar', 'error');
                 }
             } catch (e) { console.error(e); }
         });

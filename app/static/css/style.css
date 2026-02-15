@@ -357,3 +357,102 @@ textarea:focus {
         /* Width 100% was causing overflow, removed. */
     }
 }
+
+/* --- TOAST NOTIFICATIONS --- */
+#toast-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.toast {
+    background: var(--color-white);
+    color: var(--color-black);
+    padding: 15px 25px;
+    border-radius: 12px;
+    border: 2px solid var(--color-black);
+    box-shadow: 4px 4px 0px var(--color-black);
+    min-width: 250px;
+    max-width: 400px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 600;
+    transform: translateX(100%);
+    animation: slideIn 0.3s forwards;
+}
+
+.toast.success { border-left: 8px solid var(--color-green); }
+.toast.error { border-left: 8px solid var(--color-red); }
+.toast.info { border-left: 8px solid var(--color-yellow); }
+
+.toast i { font-size: 1.2rem; }
+.toast.success i { color: var(--color-green); }
+.toast.error i { color: var(--color-red); }
+.toast.info i { color: var(--color-yellow); }
+
+@keyframes slideIn {
+    to { transform: translateX(0); }
+}
+
+@keyframes slideOut {
+    to { transform: translateX(120%); opacity: 0; }
+}
+
+/* --- CUSTOM CONFIRM MODAL --- */
+#confirm-modal-overlay {
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.5);
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s;
+}
+
+#confirm-modal-overlay.active {
+    opacity: 1;
+    pointer-events: all;
+}
+
+.confirm-card {
+    background: var(--color-white);
+    padding: 30px;
+    border-radius: 20px;
+    border: 2px solid var(--color-black);
+    box-shadow: 8px 8px 0px var(--color-black);
+    max-width: 400px;
+    width: 90%;
+    text-align: center;
+    transform: scale(0.9);
+    transition: transform 0.2s;
+}
+
+#confirm-modal-overlay.active .confirm-card {
+    transform: scale(1);
+}
+
+.confirm-title {
+    font-size: 1.5rem;
+    margin-bottom: 10px;
+    font-weight: 700;
+}
+
+.confirm-message {
+    margin-bottom: 25px;
+    color: #555;
+    font-size: 1rem;
+}
+
+.confirm-actions {
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+}

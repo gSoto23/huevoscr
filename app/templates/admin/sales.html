@@ -298,7 +298,7 @@
     }
 
     async function markAsPaid(id) {
-        if (!confirm('¿Marcar pedido como PAGADO?')) return;
+        if (!await showConfirm('¿Marcar pedido como PAGADO?')) return;
         try {
             const res = await fetch(`/sales/${id}`, {
                 method: 'PUT',
@@ -310,12 +310,13 @@
             });
             if (res.ok) {
                 loadSales();
+                showToast("Pedido actualizado", "success");
             } else {
-                alert('Error actualizando pedido');
+                showToast('Error actualizando pedido', 'error');
             }
         } catch (e) {
             console.error(e);
-            alert('Error de conexión');
+            showToast('Error de conexión', 'error');
         }
     }
 
@@ -352,6 +353,7 @@
         } catch (e) {
             container.innerHTML = '<p class="error-message">Error cargando lista.</p>';
             console.error(e);
+            showToast("Error al cargar lista de distribución", "error");
         }
     }
 </script>

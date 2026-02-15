@@ -20,9 +20,12 @@
                 <tr>
                     <th style="cursor:pointer" onclick="sortTable('whatsapp_id')">WhatsApp / ID <i
                             class="fa-solid fa-sort"></i></th>
-                    <th style="cursor:pointer" onclick="sortTable('name')">Nombre <i class="fa-solid fa-sort"></i></th>
-                    <th style="cursor:pointer" onclick="sortTable('email')">Email <i class="fa-solid fa-sort"></i></th>
-                    <th style="cursor:pointer" onclick="sortTable('address')">Dirección <i class="fa-solid fa-sort"></i>
+                    <th style="cursor:pointer; min-width: 200px;" onclick="sortTable('name')">Nombre <i
+                            class="fa-solid fa-sort"></i></th>
+                    <th style="cursor:pointer; min-width: 200px;" onclick="sortTable('email')">Email <i
+                            class="fa-solid fa-sort"></i></th>
+                    <th style="cursor:pointer; min-width: 200px;" onclick="sortTable('address')">Dirección <i
+                            class="fa-solid fa-sort"></i>
                     </th>
                     <th>Ubicación</th>
                     <th style="cursor:pointer" onclick="sortTable('payment_method')">Forma de Pago <i
@@ -246,7 +249,7 @@
                 // Success, update UI
                 loadCustomers();
             } else {
-                alert('Error al actualizar estado');
+                showToast('Error al actualizar estado', 'error');
                 // Revert checkbox if failed
                 loadCustomers();
             }
@@ -278,7 +281,7 @@
         const input = document.getElementById('location_pin');
 
         if (!navigator.geolocation) {
-            alert("Geolocalización no soportada");
+            showToast("Geolocalización no soportada", "error");
             return;
         }
 
@@ -295,7 +298,7 @@
             },
             (error) => {
                 console.error(error);
-                alert("Error obteniendo ubicación. Verifique permisos.");
+                showToast("Error obteniendo ubicación. Verifique permisos.", "error");
                 btn.innerHTML = '<i class="fa-solid fa-location-dot"></i>';
                 btn.disabled = false;
             }
@@ -355,7 +358,7 @@
 
             // Validate 8+ digits
             if (!/^\d{8,}$/.test(data.whatsapp_id)) {
-                alert('El WhatsApp debe tener al menos 8 dígitos');
+                showToast('El WhatsApp debe tener al menos 8 dígitos', 'error');
                 return;
             }
 
@@ -377,7 +380,7 @@
                 if (res.ok) {
                     closeCreateModal();
                     loadCustomers();
-                    alert('Cliente guardado exitosamente');
+                    showToast('Cliente guardado exitosamente', 'success');
                 } else {
                     const err = await res.json();
                     if (err.detail && err.detail.includes("ya existe")) {
@@ -395,15 +398,15 @@
                         if (putRes.ok) {
                             closeCreateModal();
                             loadCustomers();
-                            alert('Cliente actualizado exitosamente');
+                            showToast('Cliente actualizado exitosamente', 'success');
                             return;
                         }
                     }
-                    alert('Error: ' + (err.detail || 'No se pudo crear'));
+                    showToast('Error: ' + (err.detail || 'No se pudo crear'), 'error');
                 }
             } catch (e) {
                 console.error(e);
-                alert('Error de conexión');
+                showToast('Error de conexión', 'error');
             }
         });
     }

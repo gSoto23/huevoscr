@@ -97,35 +97,35 @@
             if (res.ok) {
                 e.target.reset();
                 loadUsers();
-                msgDiv.textContent = "Usuario creado exitosamente.";
-                msgDiv.className = "success-message";
-                msgDiv.classList.remove('hidden');
+                showToast("Usuario creado exitosamente.", "success");
             } else {
                 const err = await res.json();
-                msgDiv.textContent = "Error: " + err.detail;
-                msgDiv.className = "error-message";
-                msgDiv.classList.remove('hidden');
+                showToast("Error: " + err.detail, "error");
             }
         } catch (err) {
             console.error(err);
+            showToast("Error de conexión", "error");
         }
     });
 
     async function deleteUser(id) {
-        if (!confirm('¿Seguro que deseas eliminar este usuario?')) return;
+        if (!await showConfirm('¿Seguro que deseas eliminar este usuario?')) return;
 
         try {
             const res = await fetch('/users/' + id, {
                 method: 'DELETE',
                 headers: authHeaders()
             });
-            if (res.ok) loadUsers();
-            else {
+            if (res.ok) {
+                loadUsers();
+                showToast("Usuario eliminado", "success");
+            } else {
                 const err = await res.json();
-                alert(err.detail);
+                showToast(err.detail, "error");
             }
         } catch (e) {
             console.error(e);
+            showToast("Error de conexión", "error");
         }
     }
 </script>
