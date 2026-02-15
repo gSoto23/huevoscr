@@ -37,7 +37,7 @@ async def verify_webhook(request: Request):
 
     if mode and token:
         if mode == "subscribe" and token == config.settings.WHATSAPP_VERIFY_TOKEN:
-            logger.info("WEBHOOK_VERIFIED")
+            print("debug: WEBHOOK_VERIFIED", flush=True)
             from fastapi.responses import PlainTextResponse
             return PlainTextResponse(content=challenge)
         else:
@@ -51,8 +51,9 @@ async def forward_to_n8n(message_data: dict, db: Session):
     Forwards the processed message to n8n for AI handling.
     """
     n8n_url = os.getenv("N8N_WEBHOOK_URL")
+    print(f"DEBUG: n8n_url={n8n_url}", flush=True)
     if not n8n_url:
-        logger.warning("N8N_WEBHOOK_URL not set. Skipping AI.")
+        print("WARNING: N8N_WEBHOOK_URL not set. Skipping AI.", flush=True)
         return
 
     # We might want to send more context here, or just the primitive message
@@ -67,11 +68,12 @@ async def forward_to_n8n(message_data: dict, db: Session):
     }
     
     try:
-        logger.info(f"Forwarding message from {payload['sender']} to n8n ({n8n_url})...")
+        print(f"Forwarding message from {payload['sender']} to n8n ({n8n_url})...", flush=True)
         async with httpx.AsyncClient() as client:
-            await client.post(n8n_url, json=payload, timeout=10.0)
+            resp = await client.post(n8n_url, json=payload, timeout=10.0)
+            print(f"n8n Response: {resp.status_code} - {resp.text}", flush=True)
     except Exception as e:
-        logger.error(f"Failed to forward to n8n: {e}")
+        print(f"ERROR: Failed to forward to n8n: {e}", flush=True)
 
 @router.post("")
 async def receive_whatsapp_message(
@@ -105,7 +107,7 @@ async def receive_whatsapp_message(
                 ).hexdigest()
                 
                 if not hmac.compare_digest(signature, expected_signature):
-                    logger.error("Invalid Webhook Signature")
+                    print("ERROR: Invalid Webhook Signature", flush=True)
                     raise HTTPException(status_code=403, detail="Invalid signature")
 
 
@@ -159,7 +161,7 @@ async def receive_whatsapp_message(
                 content = f"[{msg_type.upper()}] {caption}"
             else:
                 content = f"[{msg_type.upper()} - DOWNLOAD FAILED] {caption}"
-                logger.error(f"Failed to get URL for media ID: {media_id}")
+                print(f"ERROR: Failed to get URL for media ID: {media_id}", flush=True)
 
         else:
             content = f"[{msg_type} message]"
@@ -188,7 +190,7 @@ async def receive_whatsapp_message(
     except Exception as e:
         import traceback
         error_msg = f"ERROR PROCESSING WEBHOOK: {str(e)}\n{traceback.format_exc()}"
-        print(error_msg) # Print to stdout for systemctl status
-        logger.error(error_msg)
+        error_msg = f"ERROR PROCESSING WEBHOOK: {str(e)}\n{traceback.format_exc()}"
+        print(error_msg, flush=True) # Print to stdout for systemctl status
         # Return 200 to Meta to avoid retry loops, but log heavily
         return {"status": "error", "detail": str(e)}
