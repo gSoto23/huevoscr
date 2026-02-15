@@ -5,18 +5,19 @@ Bienvenido al repositorio oficial de **Huevos CR**. Esta aplicación es un siste
 ## 🚀 Características Principales
 
 ### Panel Administrativo
-- **Gestión de Clientes**: Base de datos completa con historial de pedidos, dirección (GPS), y preferencias de entrega.
-- **Historial de Chat (IA)**: Visualización en tiempo real de las conversaciones de WhatsApp entre el cliente y el Agente IA (n8n), incluyendo **soporte para imágenes y archivos (PDF)**.
-- **Control de Ventas**: Registro detallado de pedidos, estados de entrega y asignación de rutas.
+- **Gestión de Clientes**: Creación, edición y eliminación de clientes. Soporte para ubicación GPS y pre-llenado de datos.
+- **Historial de Chat (IA)**: Visualización en tiempo real de las conversaciones, con soporte para media.
+- **Control de Ventas**: Registro detallado de pedidos y asignación de rutas.
+- **UI Moderna**: Notificaciones tipo "Toaster" y modales de confirmación para acciones críticas.
 
 ### Panel de Vendedores
-- Vista simplificada para agentes de ventas.
-- Registro de pedidos en campo.
+- Registro rápido de pedidos en ruta.
+- **Agregar Clientes**: Formulario optimizado con detección automática de números y ubicación.
 - Visualización de rutas asignadas.
 
 ### Integración IA (WhatsApp)
-- Conexión vía **n8n** para flujo conversacional.
-- Ingesta de mensajes en tiempo real.
+- **Arquitectura Híbrida**: FastAPI actúa como controlador central (Webhook), gestionando la seguridad y el registro de mensajes.
+- **n8n**: Se utiliza exclusivamente para el flujo conversacional y la lógica de IA.
 - Reconocimiento de contexto del cliente para respuestas personalizadas.
 
 ---

@@ -160,17 +160,19 @@ Sigue las instrucciones en pantalla (email, aceptar términos). Certbot configur
 
 ### 6.1 Meta for Developers (WhatsApp API)
 1.  Ve a tu App en Meta Developers > WhatsApp > Configuration.
-2.  **Callback URL**: Actualiza la URL temporal por tu nuevo dominio seguro:
+2.  **Callback URL**: Actualiza la URL por tu endpoint seguro de FastAPI:
     `https://www.huevoscr.com/webhook`
-3.  **Verify Token**: Asegúrate que coincida con lo que tengas en tu código (si aplica).
+3.  **Verify Token**: Asegúrate que coincida con la variable `WHATSAPP_VERIFY_TOKEN` en tu archivo `.env`.
 
-### 6.2 n8n (Webhooks)
-1.  Entra a tus flujos de n8n.
-2.  Busca los nodos **HTTP Request** que envían datos a tu API (`/conversations`, `/sales`, etc.).
-3.  Actualiza las URLs:
-    *   De: `https://tunel-temporal.loca.lt/conversations`
-    *   A: `https://www.huevoscr.com/conversations`
-4.  Si configuraste autenticación básica o tokens en Nginx/FastAPI, asegúrate de actualizar los headers en n8n.
+### 6.2 n8n (Flujo Conversacional)
+La arquitectura ahora utiliza Python como intermediario:
+1.  **Entrada (Inbound)**: FastAPI recibe el mensaje de Meta y lo reenvía a n8n.
+    *   En n8n, usa un nodo **Webhook (POST)**.
+    *   Configura la URL de este webhook en tu variable de entorno `N8N_WEBHOOK_URL` en el servidor (`.env`).
+2.  **Salida (Outbound)**: n8n ya no contacta directo a Meta.
+    *   En n8n, usa un nodo **HTTP Request (POST)** para responder.
+    *   URL: `https://www.huevoscr.com/messages/send`
+    *   Headers: `Authorization: Bearer <TU_SECRET_KEY>` (Si implementaste seguridad) o `X-API-Key`.
 
 ---
 

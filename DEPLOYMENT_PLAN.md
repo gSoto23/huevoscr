@@ -11,9 +11,9 @@ Para un inicio rápido y costo-eficiente, utilizaremos una arquitectura basada e
 *   **Stack Web**:
     *   **Nginx**: Servidor Web y Proxy Inverso (Maneja HTTPS/SSL y carga estática).
     *   **Gunicorn**: Servidor de Aplicaciones WSGI (Ejecuta FastAPI).
-    *   **FastAPI**: Framework de la aplicación.
+    *   **FastAPI**: Framework de la aplicación y **Controlador Central de Mensajería (Webhook)**.
 *   **Base de Datos**: SQLite (`huevoscr.db` local).
-    *   *Nota*: SQLite es extremadamente rápido y capaz para miles de visitas diarias. Si el tráfico escala masivamente, la migración a una base de datos gestionada es sencilla.
+*   **Integración WhatsApp**: Modelo híbrido donde Python gestiona la conexión con Meta y delega la lógica conversacional a **n8n**.
 *   **Almacenamiento (Media)**: Disco local de la instancia.
 
 ## 2. Estrategia de Almacenamiento y Backups
