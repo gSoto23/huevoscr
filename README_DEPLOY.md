@@ -178,7 +178,14 @@ La arquitectura ahora utiliza Python como intermediario:
 
 ## Mantenimiento Futuro
 
-*   **Ver Logs de la App**: `journalctl -u huevoscr -f`
+*   **Ver Logs de la App (Tiempo Real)**:
+    ```bash
+    sudo journalctl -u huevoscr -f
+    ```
+*   **Verificar Último Mensaje Recibido (Script)**:
+    ```bash
+    ./venv/bin/python3 scripts/check_last_message.py
+    ```
 *   **Reiniciar App (tras cambios de código)**:
     ```bash
     cd /home/ubuntu/huevoscr
