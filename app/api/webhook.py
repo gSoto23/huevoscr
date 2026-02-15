@@ -67,6 +67,7 @@ async def forward_to_n8n(message_data: dict, db: Session):
     }
     
     try:
+        logger.info(f"Forwarding message from {payload['sender']} to n8n ({n8n_url})...")
         async with httpx.AsyncClient() as client:
             await client.post(n8n_url, json=payload, timeout=10.0)
     except Exception as e:
@@ -78,9 +79,6 @@ async def receive_whatsapp_message(
     background_tasks: BackgroundTasks,
     db: Session = Depends(database.get_db)
 ):
-    """
-    Receives events from Meta.
-    """
     """
     Receives events from Meta.
     """
