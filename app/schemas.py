@@ -20,13 +20,13 @@ class User(UserBase):
 # --- Customer Schemas ---
 class CustomerBase(BaseModel):
     whatsapp_id: str
-    name: str
+    name: Optional[str] = None
     email: Optional[EmailStr] = None
-    address: str
+    address: Optional[str] = None
     location_pin: Optional[str] = None
-    cartons_qty: int = 1
-    periodicity: str
-    payment_method: str
+    cartons_qty: Optional[int] = 1
+    periodicity: Optional[str] = None
+    payment_method: Optional[str] = None
 
 class CustomerCreate(CustomerBase):
     pass

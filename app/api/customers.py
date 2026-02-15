@@ -85,17 +85,30 @@ def read_customer(
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(auth.get_current_active_user)
 ):
+    # Try exact match first
     customer = db.query(models.Customer).filter(models.Customer.whatsapp_id == whatsapp_id).first()
+    
+    # Smart Lookup (Try with/without 506)
+    if not customer:
+        if whatsapp_id.startswith("506") and len(whatsapp_id) > 8:
+            # Try without 506
+            short_id = whatsapp_id[3:]
+            customer = db.query(models.Customer).filter(models.Customer.whatsapp_id == short_id).first()
+        elif len(whatsapp_id) == 8:
+            # Try with 506
+            long_id = "506" + whatsapp_id
+            customer = db.query(models.Customer).filter(models.Customer.whatsapp_id == long_id).first()
+
     if customer is None:
         raise HTTPException(status_code=404, detail="Customer not found")
     
     # Permission check
-    if current_user.role != "admin" and customer.seller_id != current_user.id:
+    if current_user.role != "admin" and customer.seller_id != current_user.id and customer.seller_id is not None:
          raise HTTPException(status_code=403, detail="Not authorized to view this customer")
          
     # Fetch last order context
     last_order = db.query(models.Order)\
-        .filter(models.Order.customer_id == whatsapp_id)\
+        .filter(models.Order.customer_id == customer.whatsapp_id)\
         .order_by(models.Order.created_at.desc())\
         .first()
         
@@ -114,6 +127,25 @@ def read_customer(
         customer.last_order_summary = None
 
     return customer
+
+@router.delete("/{whatsapp_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_customer(
+    whatsapp_id: str,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth.get_current_admin_user)
+):
+    # 1. Find Customer
+    customer = db.query(models.Customer).filter(models.Customer.whatsapp_id == whatsapp_id).first()
+    if not customer:
+        raise HTTPException(status_code=404, detail="Customer not found")
+    
+    # 2. Delete related orders (Manual cascade if not set in DB)
+    db.query(models.Order).filter(models.Order.customer_id == whatsapp_id).delete()
+    
+    # 3. Delete Customer
+    db.delete(customer)
+    db.commit()
+    return None
 
 @router.put("/{whatsapp_id}", response_model=schemas.Customer)
 def update_customer(

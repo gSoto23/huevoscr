@@ -6,8 +6,13 @@
 <h1>Gestión de Clientes</h1>
 
 <div style="margin-bottom: 20px;">
-    <input type="text" id="searchInput" placeholder="Buscar cliente por nombre, ID o dirección..."
-        style="width: 100%; max-width: 400px; padding: 10px; border-radius: 20px; border: 1px solid #ccc;">
+    <div style="display:flex; gap:10px; width:100%; max-width:600px;">
+        <input type="text" id="searchInput" placeholder="Buscar cliente por nombre, ID o dirección..."
+            style="flex:1; padding: 10px; border-radius: 20px; border: 1px solid #ccc;">
+        <button class="btn-primary" onclick="openCreateModal()">
+            <i class="fa-solid fa-plus"></i> Agregar
+        </button>
+    </div>
 </div>
 
 <div class="card">
@@ -69,10 +74,207 @@
         </form>
     </div>
 </div>
+<!-- Create Modal (Same as Seller) -->
+<div id="createModal" class="hidden"
+    style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:200;">
+    <div class="card"
+        style="width: 90%; max-width: 500px; margin: 50px auto; padding: 20px; max-height: 90vh; overflow-y: auto;">
+        <h3>Agregar Nuevo Cliente (Admin)</h3>
+        <p style="font-size: 0.9rem; color: #666;">El cliente se creará sin asignar (podrás asignarlo luego).</p>
+
+        <form id="createForm">
+            <div class="form-group">
+                <label>WhatsApp (ID) *</label>
+                <input type="text" name="whatsapp_id" required pattern="\d{8,}" minlength="8" placeholder="88888888">
+            </div>
+            <div class="form-group">
+                <label>Nombre Completo</label>
+                <input type="text" name="name">
+            </div>
+            <div class="form-group">
+                <label>Dirección</label>
+                <textarea name="address"></textarea>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Cantidad</label>
+                    <input type="number" name="cartons_qty" value="1" min="1">
+                </div>
+                <div class="form-group">
+                    <label>Periodicidad</label>
+                    <select name="periodicity">
+                        <option value="Semanal">Semanal</option>
+                        <option value="Mensual">Mensual</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Forma de Pago</label>
+                    <select name="payment_method">
+                        <option value="Sinpe">Sinpe</option>
+                        <option value="Efectivo">Efectivo</option>
+                        <option value="Transferencia">Transferencia</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Email (Opcional)</label>
+                    <input type="email" name="email">
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Link Ubicación (Opcional)</label>
+                <div style="display: flex; gap: 10px;">
+                    <input type="text" id="location_pin" name="location_pin" placeholder="https://maps..."
+                        style="flex: 1;">
+                    <button type="button" id="geoBtn" class="btn-secondary"
+                        style="padding: 0 10px; white-space: nowrap;" onclick="getLocation()">
+                        <i class="fa-solid fa-location-dot"></i>
+                    </button>
+                    <small id="geoMsg" style="display:none"></small>
+                </div>
+            </div>
+
+            <div style="display:flex; justify-content: flex-end; gap: 10px; margin-top: 20px;">
+                <button type="button" class="btn-secondary" onclick="closeCreateModal()">Cancelar</button>
+                <button type="submit" class="btn-primary">Guardar</button>
+            </div>
+        </form>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
 <script>
+    // --- Create Modal Logic (Copied from Seller) ---
+    function openCreateModal() {
+        document.getElementById('createModal').style.display = 'block';
+    }
+
+    function closeCreateModal() {
+        document.getElementById('createModal').style.display = 'none';
+        document.getElementById('createForm').reset();
+    }
+
+    // Location Logic
+    function getLocation() {
+        const btn = document.getElementById('geoBtn');
+        const input = document.getElementById('location_pin');
+
+        if (!navigator.geolocation) {
+            alert("Geolocalización no soportada");
+            return;
+        }
+
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                const lat = position.coords.latitude;
+                const lng = position.coords.longitude;
+                input.value = `https://www.google.com/maps?q=${lat},${lng}`;
+                btn.innerHTML = '<i class="fa-solid fa-check"></i>';
+                btn.disabled = false;
+            },
+            (error) => {
+                console.error(error);
+                alert("Error obteniendo ubicación. Verifique permisos.");
+                btn.innerHTML = '<i class="fa-solid fa-location-dot"></i>';
+                btn.disabled = false;
+            }
+        );
+    }
+
+    // Pre-fill Logic
+    const waInput = document.querySelector('input[name="whatsapp_id"]');
+    if (waInput) {
+        waInput.addEventListener('blur', async (e) => {
+            let val = e.target.value;
+            if (val.length === 8) {
+                val = '506' + val;
+                e.target.value = val;
+            }
+            if (val.length >= 8) {
+                try {
+                    const res = await fetch(`/customers/${val}`, { headers: authHeaders() });
+                    if (res.ok) {
+                        const data = await res.json();
+                        // Populate fields
+                        document.querySelector('input[name="name"]').value = data.name || '';
+                        document.querySelector('textarea[name="address"]').value = data.address || '';
+                        document.querySelector('input[name="email"]').value = data.email || '';
+                        if (data.location_pin) document.getElementById('location_pin').value = data.location_pin;
+
+                        // Selects
+                        if (data.payment_method) document.querySelector('select[name="payment_method"]').value = data.payment_method;
+                        if (data.periodicity) document.querySelector('select[name="periodicity"]').value = data.periodicity;
+                        if (data.cartons_qty) document.querySelector('input[name="cartons_qty"]').value = data.cartons_qty;
+
+                        e.target.style.borderColor = 'green';
+                    }
+                } catch (err) {
+                    // Not found
+                    e.target.style.borderColor = '#ccc';
+                }
+            }
+        });
+    }
+
+    const createForm = document.getElementById('createForm');
+    if (createForm) {
+        createForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const data = Object.fromEntries(formData.entries());
+
+            if (!/^\d{8,}$/.test(data.whatsapp_id)) {
+                alert('El WhatsApp debe tener al menos 8 dígitos');
+                return;
+            }
+
+            if (!data.email) delete data.email;
+            if (!data.location_pin) delete data.location_pin;
+            data.cartons_qty = parseInt(data.cartons_qty);
+
+            try {
+                const res = await fetch('/customers/', {
+                    method: 'POST',
+                    headers: {
+                        ...authHeaders(),
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                });
+
+                if (res.ok) {
+                    closeCreateModal();
+                    loadCustomers();
+                    alert('Cliente guardado exitosamente');
+                } else {
+                    const err = await res.json();
+                    if (err.detail && err.detail.includes("ya existe")) {
+                        // Attempt Update
+                        const putRes = await fetch(`/customers/${data.whatsapp_id}`, {
+                            method: 'PUT',
+                            headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+                            body: JSON.stringify(data)
+                        });
+                        if (putRes.ok) {
+                            closeCreateModal();
+                            loadCustomers();
+                            alert('Cliente actualizado exitosamente');
+                            return;
+                        }
+                    }
+                    alert('Error: ' + (err.detail || 'No se pudo crear'));
+                }
+            } catch (e) {
+                console.error(e);
+                alert('Error de conexión');
+            }
+        });
+    }
     let allCustomers = [];
     let currentSort = { column: null, direction: 'asc' };
 
@@ -200,18 +402,48 @@
                 <td>${c.seller ? c.seller.username : '<span style="color:#999">Sin asignar</span>'}</td>
                 <td>${toggleHtml}</td>
                 <td>
-                    <button 
-                        onclick="openEditModal('${c.whatsapp_id}', '${c.seller_id || ''}')" 
-                        class="btn-secondary" 
-                        style="padding: 5px 10px; font-size: 0.8rem; ${!c.is_active ? 'opacity: 0.5; cursor: not-allowed;' : ''}"
-                        ${!c.is_active ? 'disabled' : ''}
-                    >
-                        Asignar
-                    </button>
+                    <div style="display:flex; gap:5px;">
+                        <button 
+                            onclick="openEditModal('${c.whatsapp_id}', '${c.seller_id || ''}')" 
+                            class="btn-secondary" 
+                            style="padding: 5px 10px; font-size: 0.8rem; ${!c.is_active ? 'opacity: 0.5;' : ''}"
+                        >
+                            Asignar
+                        </button>
+                        <button 
+                            onclick="deleteCustomer('${c.whatsapp_id}')" 
+                            class="btn-secondary" 
+                            style="padding: 5px 10px; font-size: 0.8rem; background-color: var(--color-red); color: white; border: none;"
+                        >
+                            <i class="fa-solid fa-trash"></i>
+                        </button>
+                    </div>
                 </td>
             `;
             tbody.appendChild(tr);
         });
+    }
+
+    async function deleteCustomer(waId) {
+        if (!confirm(`¿Estás seguro de ELIMINAR al cliente ${waId}? Esto borrará también sus pedidos y es irreversible.`)) return;
+
+        try {
+            const res = await fetch(`/customers/${waId}`, {
+                method: 'DELETE',
+                headers: authHeaders()
+            });
+
+            if (res.ok) {
+                alert('Cliente eliminado');
+                loadCustomers();
+            } else {
+                const err = await res.json();
+                alert('Error: ' + (err.detail || 'No se pudo eliminar'));
+            }
+        } catch (e) {
+            console.error(e);
+            alert('Error de conexión');
+        }
     }
 
     async function toggleStatus(waId, isActive) {

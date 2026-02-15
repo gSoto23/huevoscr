@@ -47,6 +47,11 @@ document.getElementById('subscriptionForm').addEventListener('submit', async fun
     const data = Object.fromEntries(formData.entries());
 
     // Custom Validation
+    // Auto-prepend 506 if exactly 8 digits
+    if (/^\d{8}$/.test(data.whatsapp_id)) {
+        data.whatsapp_id = '506' + data.whatsapp_id;
+    }
+
     if (!/^\d{8,}$/.test(data.whatsapp_id)) {
         messageDiv.textContent = 'El número de WhatsApp debe tener al menos 8 dígitos.';
         messageDiv.className = 'error-message';

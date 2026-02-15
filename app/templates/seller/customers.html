@@ -55,21 +55,21 @@
                 <input type="text" name="whatsapp_id" required pattern="\d{8,}" minlength="8" placeholder="88888888">
             </div>
             <div class="form-group">
-                <label>Nombre Completo *</label>
-                <input type="text" name="name" required>
+                <label>Nombre Completo</label>
+                <input type="text" name="name">
             </div>
             <div class="form-group">
-                <label>Dirección *</label>
-                <textarea name="address" required></textarea>
+                <label>Dirección</label>
+                <textarea name="address"></textarea>
             </div>
             <div class="form-row">
                 <div class="form-group">
-                    <label>Cantidad *</label>
-                    <input type="number" name="cartons_qty" value="1" min="1" required>
+                    <label>Cantidad</label>
+                    <input type="number" name="cartons_qty" value="1" min="1">
                 </div>
                 <div class="form-group">
-                    <label>Periodicidad *</label>
-                    <select name="periodicity" required>
+                    <label>Periodicidad</label>
+                    <select name="periodicity">
                         <option value="Semanal">Semanal</option>
                         <option value="Mensual">Mensual</option>
                     </select>
@@ -77,8 +77,8 @@
             </div>
             <div class="form-row">
                 <div class="form-group">
-                    <label>Forma de Pago *</label>
-                    <select name="payment_method" required>
+                    <label>Forma de Pago</label>
+                    <select name="payment_method">
                         <option value="Sinpe">Sinpe</option>
                         <option value="Efectivo">Efectivo</option>
                         <option value="Transferencia">Transferencia</option>
@@ -91,7 +91,15 @@
             </div>
             <div class="form-group">
                 <label>Link Ubicación (Opcional)</label>
-                <input type="text" name="location_pin" placeholder="https://maps...">
+                <div style="display: flex; gap: 10px;">
+                    <input type="text" id="location_pin" name="location_pin" placeholder="https://maps..."
+                        style="flex: 1;">
+                    <button type="button" id="geoBtn" class="btn-secondary"
+                        style="padding: 0 10px; white-space: nowrap;" onclick="getLocation()">
+                        <i class="fa-solid fa-location-dot"></i>
+                    </button>
+                    <small id="geoMsg" style="display:none"></small>
+                </div>
             </div>
 
             <div style="display:flex; justify-content: flex-end; gap: 10px; margin-top: 20px;">
@@ -264,6 +272,72 @@
         document.getElementById('createForm').reset();
     }
 
+    // Location Logic
+    function getLocation() {
+        const btn = document.getElementById('geoBtn');
+        const input = document.getElementById('location_pin');
+
+        if (!navigator.geolocation) {
+            alert("Geolocalización no soportada");
+            return;
+        }
+
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                const lat = position.coords.latitude;
+                const lng = position.coords.longitude;
+                input.value = `https://www.google.com/maps?q=${lat},${lng}`;
+                btn.innerHTML = '<i class="fa-solid fa-check"></i>';
+                btn.disabled = false;
+            },
+            (error) => {
+                console.error(error);
+                alert("Error obteniendo ubicación. Verifique permisos.");
+                btn.innerHTML = '<i class="fa-solid fa-location-dot"></i>';
+                btn.disabled = false;
+            }
+        );
+    }
+
+    // Pre-fill Logic
+    const waInput = document.querySelector('input[name="whatsapp_id"]');
+    if (waInput) {
+        waInput.addEventListener('blur', async (e) => {
+            let val = e.target.value;
+            if (val.length === 8) {
+                val = '506' + val;
+                e.target.value = val;
+            }
+            if (val.length >= 8) {
+                try {
+                    const res = await fetch(`/customers/${val}`, { headers: authHeaders() });
+                    if (res.ok) {
+                        const data = await res.json();
+                        // Populate fields
+                        document.querySelector('input[name="name"]').value = data.name || '';
+                        document.querySelector('textarea[name="address"]').value = data.address || '';
+                        document.querySelector('input[name="email"]').value = data.email || '';
+                        if (data.location_pin) document.getElementById('location_pin').value = data.location_pin;
+
+                        // Selects
+                        if (data.payment_method) document.querySelector('select[name="payment_method"]').value = data.payment_method;
+                        if (data.periodicity) document.querySelector('select[name="periodicity"]').value = data.periodicity;
+                        if (data.cartons_qty) document.querySelector('input[name="cartons_qty"]').value = data.cartons_qty;
+
+                        // Visual cue
+                        e.target.style.borderColor = 'green';
+                    }
+                } catch (err) {
+                    console.log("Customer not found, new entry.");
+                    e.target.style.borderColor = '#ccc';
+                }
+            }
+        });
+    }
+
     const createForm = document.getElementById('createForm');
     if (createForm) {
         createForm.addEventListener('submit', async (e) => {
@@ -295,9 +369,28 @@
                 if (res.ok) {
                     closeCreateModal();
                     loadCustomers();
-                    alert('Cliente creado exitosamente');
+                    alert('Cliente guardado exitosamente');
                 } else {
                     const err = await res.json();
+                    if (err.detail && err.detail.includes("ya existe")) {
+                        // Attempt Update if exists logic desired? 
+                        // For now just alert, user can edit via list if needed, 
+                        // OR we can implement PUT /customers/{id} here if we want "Upsert".
+                        // Given the requirement "Pre-fill... to know what info they have",
+                        // likely we want to UPDATE if they hit save. 
+                        // Let's try PUT if POST fails with "exists".
+                        const putRes = await fetch(`/customers/${data.whatsapp_id}`, {
+                            method: 'PUT',
+                            headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+                            body: JSON.stringify(data)
+                        });
+                        if (putRes.ok) {
+                            closeCreateModal();
+                            loadCustomers();
+                            alert('Cliente actualizado exitosamente');
+                            return;
+                        }
+                    }
                     alert('Error: ' + (err.detail || 'No se pudo crear'));
                 }
             } catch (e) {
