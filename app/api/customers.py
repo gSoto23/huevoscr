@@ -46,9 +46,23 @@ def create_customer(
     # Seller creates -> Auto assigned
     # Admin creates -> Unassigned (default)
     
+    # Check if customer exists (Smart Lookup)
+    # Try exact match first
     db_cust = db.query(models.Customer).filter(models.Customer.whatsapp_id == customer.whatsapp_id).first()
+    
+    # Smart Lookup (Try with/without 506)
+    if not db_cust:
+        if customer.whatsapp_id.startswith("506") and len(customer.whatsapp_id) > 8:
+            # Try without 506
+            short_id = customer.whatsapp_id[3:]
+            db_cust = db.query(models.Customer).filter(models.Customer.whatsapp_id == short_id).first()
+        elif len(customer.whatsapp_id) == 8:
+            # Try with 506
+            long_id = "506" + customer.whatsapp_id
+            db_cust = db.query(models.Customer).filter(models.Customer.whatsapp_id == long_id).first()
+
     if db_cust:
-        raise HTTPException(status_code=400, detail="El cliente ya existe con este WhatsApp")
+        raise HTTPException(status_code=400, detail=f"El cliente ya existe con este WhatsApp (ID: {db_cust.whatsapp_id})")
 
     new_customer = models.Customer(**customer.dict())
     
@@ -154,7 +168,18 @@ def update_customer(
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(auth.get_current_active_user)
 ):
+    # Try exact match first
     db_customer = db.query(models.Customer).filter(models.Customer.whatsapp_id == whatsapp_id).first()
+    
+    # Smart Lookup (Try with/without 506)
+    if not db_customer:
+        if whatsapp_id.startswith("506") and len(whatsapp_id) > 8:
+            short_id = whatsapp_id[3:]
+            db_customer = db.query(models.Customer).filter(models.Customer.whatsapp_id == short_id).first()
+        elif len(whatsapp_id) == 8:
+            long_id = "506" + whatsapp_id
+            db_customer = db.query(models.Customer).filter(models.Customer.whatsapp_id == long_id).first()
+
     if db_customer is None:
         raise HTTPException(status_code=404, detail="Customer not found")
     

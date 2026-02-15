@@ -187,35 +187,47 @@
     }
 
     // Pre-fill Logic
-    const waInput = document.querySelector('input[name="whatsapp_id"]');
+    const waInput = document.querySelector('#createForm input[name="whatsapp_id"]');
     if (waInput) {
         waInput.addEventListener('blur', async (e) => {
-            let val = e.target.value;
+            let val = e.target.value.trim();
+
+            // Auto-format visually on blur
             if (val.length === 8) {
                 val = '506' + val;
                 e.target.value = val;
             }
+
+            // If length is > 8 (likely 11 with 506), try to fetch
             if (val.length >= 8) {
                 try {
+                    // Try fetch. The backend is now smart, so sending 506... or raw ... should find it.
+                    // But good to send what we have.
                     const res = await fetch(`/customers/${val}`, { headers: authHeaders() });
                     if (res.ok) {
                         const data = await res.json();
                         // Populate fields
-                        document.querySelector('input[name="name"]').value = data.name || '';
-                        document.querySelector('textarea[name="address"]').value = data.address || '';
-                        document.querySelector('input[name="email"]').value = data.email || '';
-                        if (data.location_pin) document.getElementById('location_pin').value = data.location_pin;
+                        const form = document.getElementById('createForm');
+                        form.querySelector('input[name="name"]').value = data.name || '';
+                        form.querySelector('textarea[name="address"]').value = data.address || '';
+                        form.querySelector('input[name="email"]').value = data.email || '';
+                        if (data.location_pin && form.querySelector('#location_pin')) {
+                            form.querySelector('#location_pin').value = data.location_pin;
+                        }
 
                         // Selects
-                        if (data.payment_method) document.querySelector('select[name="payment_method"]').value = data.payment_method;
-                        if (data.periodicity) document.querySelector('select[name="periodicity"]').value = data.periodicity;
-                        if (data.cartons_qty) document.querySelector('input[name="cartons_qty"]').value = data.cartons_qty;
+                        if (data.payment_method) form.querySelector('select[name="payment_method"]').value = data.payment_method;
+                        if (data.periodicity) form.querySelector('select[name="periodicity"]').value = data.periodicity;
+                        if (data.cartons_qty) form.querySelector('input[name="cartons_qty"]').value = data.cartons_qty;
 
                         e.target.style.borderColor = 'green';
+                        // Optional: Show a small "Traído de la base de datos" message?
+                    } else {
+                        // If 404, valid new user
+                        e.target.style.borderColor = '#ccc';
                     }
                 } catch (err) {
-                    // Not found
-                    e.target.style.borderColor = '#ccc';
+                    console.log("Customer lookup failed or network error");
                 }
             }
         });
