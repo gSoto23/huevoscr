@@ -29,6 +29,7 @@ async def download_whatsapp_image(media_url: str, folder: str = "receipts") -> s
 
             if response.status_code == 200:
                 import mimetypes
+                content_type = response.headers.get("Content-Type", "")
                 # Guess extension
                 ext = mimetypes.guess_extension(content_type)
                 if not ext:

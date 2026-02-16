@@ -220,3 +220,54 @@ def assign_customer_to_seller(
     customer.seller_id = seller_id
     db.commit()
     return {"status": "assigned"}
+
+@router.post("/{whatsapp_id}/confirm_receipt", status_code=status.HTTP_200_OK)
+def confirm_receipt_for_order(
+    whatsapp_id: str,
+    confirmation: schemas.ReceiptConfirmation,
+    db: Session = Depends(database.get_db),
+    # Might be called by n8n (Generic Auth? Or Public?)
+    # For now, let's allow it securely via token or API key if implemented, 
+    # but here let's assume valid session or internal protection.
+    # If called by n8n, it needs auth. Let's use get_current_active_user (n8n should use Admin/System token)
+    current_user: models.User = Depends(auth.get_current_active_user)
+):
+    # 1. Fetch Customer
+    customer = db.query(models.Customer).filter(models.Customer.whatsapp_id == whatsapp_id).first()
+    if not customer:
+        raise HTTPException(status_code=404, detail="Customer not found")
+
+    # 2. Verify Pending Receipt
+    if not customer.pending_receipt_media_id:
+        raise HTTPException(status_code=400, detail="No pending receipt found for this customer")
+
+    # 3. Determine Order ID
+    target_order_id = confirmation.order_id or customer.pending_receipt_for_order_id
+    
+    if not target_order_id:
+         raise HTTPException(status_code=400, detail="No target order specified or found in pending context")
+
+    # 4. Fetch Order
+    order = db.query(models.Order).filter(models.Order.id == target_order_id).first()
+    if not order:
+        raise HTTPException(status_code=404, detail=f"Order {target_order_id} not found")
+
+    # 5. Attach Receipt & Update Status
+    order.receipt_media_id = customer.pending_receipt_media_id
+    order.receipt_caption = customer.pending_receipt_caption
+    order.has_attachment = True
+    order.status = "payment_pending_validation" # State change for verification
+
+    # 6. Clear Customer Pending State
+    customer.pending_receipt_media_id = None
+    customer.pending_receipt_caption = None
+    customer.pending_receipt_ts = None
+    customer.pending_receipt_for_order_id = None
+
+    db.commit()
+    
+    return {
+        "status": "success", 
+        "message": f"Receipt attached to Order #{order.id}",
+        "order_status": order.status
+    }
