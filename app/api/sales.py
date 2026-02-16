@@ -71,11 +71,21 @@ def create_sale(
         # content = sale_data.pop("n8n_context")
          del sale_data["n8n_context"]
 
-    db_order = models.Order(**sale_data)
     db.add(db_order)
     db.commit()
     db.refresh(db_order)
-    db.refresh(db_order)
+
+    # --- Receipt Logic ---
+    # If payment method is SINPE or Transfer, we expect a receipt.
+    # We flag the customer so the next incoming image is treated as a candidate.
+    pm = sale_data.get("payment_method", "").lower()
+    if pm in ["sinpe", "transferencia", "deposito", "transfer"]:
+        customer.pending_receipt_for_order_id = db_order.id
+        customer.pending_receipt_ts = datetime.utcnow()
+        db.add(customer) # Mark modified
+        db.commit()
+        print(f"DEBUG: Customer {customer.whatsapp_id} flagged for receipt on Order #{db_order.id}", flush=True)
+
     return db_order
 
 @router.get("/{order_id}", response_model=schemas.Order)
