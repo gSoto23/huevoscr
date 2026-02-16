@@ -140,8 +140,12 @@ async def update_sale(
     update_data = order_update.dict(exclude_unset=True)
 
     # 1. Map 'delivery_status' to 'status'
+    # Only map it if 'status' is NOT explicitly provided in the update payload.
+    # This prevents n8n default 'delivery_status: pending' from overwriting 'status: cancelled'.
     if "delivery_status" in update_data:
-        update_data["status"] = update_data.pop("delivery_status")
+        d_status = update_data.pop("delivery_status")
+        if "status" not in update_data:
+             update_data["status"] = d_status
 
     # 2. Handle 'delivery_date' string (DD/MM/YYYY or YYYY-MM-DD) -> datetime
     if "delivery_date" in update_data and isinstance(update_data["delivery_date"], str):
