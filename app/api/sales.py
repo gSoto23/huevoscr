@@ -78,13 +78,21 @@ def create_sale(
     # --- Receipt Logic ---
     # If payment method is SINPE or Transfer, we expect a receipt.
     # We flag the customer so the next incoming image is treated as a candidate.
-    pm = sale_data.get("payment_method", "").lower()
-    if pm in ["sinpe", "transferencia", "deposito", "transfer"]:
-        customer.pending_receipt_for_order_id = db_order.id
-        customer.pending_receipt_ts = datetime.utcnow()
-        db.add(customer) # Mark modified
-        db.commit()
-        print(f"DEBUG: Customer {customer.whatsapp_id} flagged for receipt on Order #{db_order.id}", flush=True)
+    try:
+        pm = sale_data.get("payment_method", "").lower()
+        if pm in ["sinpe", "transferencia", "deposito", "transfer"]:
+            # Re-fetch customer to ensure session attachment (optional but safe)
+            # customer = db.merge(customer) 
+            customer.pending_receipt_for_order_id = db_order.id
+            customer.pending_receipt_ts = datetime.utcnow()
+            db.add(customer) # Mark modified
+            db.commit()
+            print(f"DEBUG: Customer {customer.whatsapp_id} flagged for receipt on Order #{db_order.id}", flush=True)
+    except Exception as e:
+        print(f"ERROR: Failed to flag customer for receipt: {str(e)}", flush=True)
+        # We generally don't want to crash the order creation just because this failed.
+        # But we should alert someone.
+        db.rollback() 
 
     return db_order
 
