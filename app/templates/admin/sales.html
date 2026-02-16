@@ -125,10 +125,18 @@
 
         pageData.forEach(s => {
             const tr = document.createElement('tr');
-            const isPaid = s.status === 'paid';
-            const statusPill = isPaid
-                ? '<span style="background-color: #198754; color: white; padding: 4px 8px; border-radius: 12px; font-size: 0.85rem;">Pagado</span>'
-                : '<span style="background-color: #ffc107; color: #333; padding: 4px 8px; border-radius: 12px; font-size: 0.85rem;">Pendiente</span>';
+            let statusPill = '';
+            const status = (s.status || 'pending').toLowerCase();
+            
+            if (status === 'paid') {
+                statusPill = '<span style="background-color: #198754; color: white; padding: 4px 8px; border-radius: 12px; font-size: 0.85rem;">Pagado</span>';
+            } else if (status === 'cancelled') {
+                statusPill = '<span style="background-color: #dc3545; color: white; padding: 4px 8px; border-radius: 12px; font-size: 0.85rem;">Cancelado</span>';
+            } else if (status === 'delivered') {
+                statusPill = '<span style="background-color: #0dcaf0; color: white; padding: 4px 8px; border-radius: 12px; font-size: 0.85rem;">Entregado</span>';
+            } else {
+                statusPill = '<span style="background-color: #ffc107; color: #333; padding: 4px 8px; border-radius: 12px; font-size: 0.85rem;">Pendiente</span>';
+            }
 
             // Show receipt info if available
             let receiptInfo = '';
