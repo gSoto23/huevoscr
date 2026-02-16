@@ -48,7 +48,7 @@
                     <th style="cursor:pointer; min-width: 150px;" onclick="sortTable('seller')">Vendedor <i
                             class="fa-solid fa-sort"></i>
                     </th>
-                    <th style="cursor:pointer; min-width: 155px;" onclick="sortTable('is_active')">Estado <i
+                    <th style="cursor:pointer; min-width: 220px;" onclick="sortTable('is_active')">Estado <i
                             class="fa-solid fa-sort"></i>
                     </th>
                     <th>Acciones</th>
@@ -394,8 +394,8 @@
             }
 
             const toggleHtml = `
-                <div style="display:flex; align-items:center; gap:8px;" title="${c.status_changed_at ? 'Modificado: ' + c.status_changed_at : ''}">
-                    <label class="switch" style="margin-bottom:0;">
+                <div style="display:flex; align-items:center; gap:8px; white-space: nowrap;" title="${c.status_changed_at ? 'Modificado: ' + c.status_changed_at : ''}">
+                    <label class="switch" style="margin-bottom:0; flex-shrink: 0;">
                         <input type="checkbox" ${c.is_active ? 'checked' : ''} onchange="toggleStatus('${c.whatsapp_id}', this.checked)">
                         <span class="slider round"></span>
                     </label>
