@@ -79,6 +79,7 @@ def create_sale(
         # content = sale_data.pop("n8n_context")
          del sale_data["n8n_context"]
 
+    db_order = models.Order(**sale_data)
     db.add(db_order)
     db.commit()
     db.refresh(db_order)
