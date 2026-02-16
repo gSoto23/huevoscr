@@ -171,8 +171,32 @@ La arquitectura ahora utiliza Python como intermediario:
     *   Configura la URL de este webhook en tu variable de entorno `N8N_WEBHOOK_URL` en el servidor (`.env`).
 2.  **Salida (Outbound)**: n8n ya no contacta directo a Meta.
     *   En n8n, usa un nodo **HTTP Request (POST)** para responder.
-    *   URL: `https://www.huevoscr.com/messages/send`
-    *   Headers: `Authorization: Bearer <TU_SECRET_KEY>` (Si implementaste seguridad) o `X-API-Key`.
+    *   **URL**: `https://www.huevoscr.com/messages/send`
+    *   **Authentication**: Generic Credential Type > Header Auth.
+        *   Name: `Authorization`
+        *   Value: `Bearer <TU_TOKEN_LARGA_DURACION>`
+    *   **Body Content**: JSON
+    *   **JSON**:
+        ```json
+        {
+          "to": "506{{ $json.body.entry[0].changes[0].value.messages[0].from }}",
+          "body": "Respuesta desde n8n"
+        }
+        ```
+        *(Asegúrate de mapear el campo "to" dinámicamente con el número del remitente)*.
+
+3.  **Confirmación de Recibo (n8n)**:
+    *   Cuando el cliente confirma que envió el pago, usa un nodo **HTTP Request (POST)**.
+    *   **URL**: `https://www.huevoscr.com/customers/{{ $json.sender }}/confirm_receipt`
+    *   **Authentication**: Generic Credential Type > Header Auth (Bearer Token).
+    *   **Body Content**: JSON
+    *   **JSON**:
+        ```json
+        {
+          "order_id": {{ $json.pending_order_id }} 
+        }
+        ```
+        *(El campo `pending_order_id` viene en el webhook inicial si es un recibo candidato, o puedes omitirlo para usar el último detectado)*.
 
 ---
 

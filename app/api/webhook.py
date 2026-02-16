@@ -58,13 +58,19 @@ async def forward_to_n8n(message_data: dict, db: Session):
 
     # We might want to send more context here, or just the primitive message
     # Let's send a structured payload
+    # Prepare payload with full media URL if present
+    base_url = "https://www.huevoscr.com"
+    media_url = message_data.get("media_url")
+    if media_url and media_url.startswith("/"):
+        media_url = f"{base_url}{media_url}"
+
     payload = {
         "message": message_data["content"],
         "sender": message_data["whatsapp_id"],
         "timestamp": message_data["timestamp"],
-        "media_url": message_data.get("media_url"),
-        # Fetch latest context? Or let n8n fetch it via API?
-        # Let's send minimal data first.
+        "media_url": media_url,
+        "is_receipt_candidate": message_data.get("is_receipt_candidate", False),
+        "pending_order_id": message_data.get("pending_order_id"),
     }
     
     try:
@@ -181,6 +187,27 @@ async def receive_whatsapp_message(
         # 3. Process & Save
         await conversation_service.process_conversation_messages(db, [msg_data])
         
+        # --- Receipt Logic ---
+        # Check if this is a receipt candidate
+        customer = db.query(models.Customer).filter(models.Customer.whatsapp_id == wa_id).first()
+        is_receipt_candidate = False
+        pending_order_id = None
+        
+        if customer and customer.pending_receipt_for_order_id and media_url:
+            # It's a match! Stage it.
+            customer.pending_receipt_media_id = media_url
+            from datetime import datetime
+            customer.pending_receipt_ts = datetime.utcnow()
+            db.commit()
+            
+            is_receipt_candidate = True
+            pending_order_id = customer.pending_receipt_for_order_id
+            print(f"DEBUG: Receipt Candidate Detected for Order {pending_order_id}", flush=True)
+
+        # Add flags to msg_data for n8n
+        msg_data["is_receipt_candidate"] = is_receipt_candidate
+        msg_data["pending_order_id"] = pending_order_id
+
         # 4. Trigger n8n (only for incoming user messages)
         # We use BackgroundTasks to not block the webhook response to Meta (must be < 3s)
         background_tasks.add_task(forward_to_n8n, msg_data, db)

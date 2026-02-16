@@ -107,6 +107,9 @@ class OrderUpdate(BaseModel):
     receipt_caption: Optional[str] = None
     n8n_context: Optional[str] = None
 
+class ReceiptConfirmation(BaseModel):
+    order_id: Optional[int] = None
+
 class Order(OrderBase):
     id: int
     customer_id: str
