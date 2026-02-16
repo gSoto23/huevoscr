@@ -38,17 +38,25 @@ def create_sale(
         sale_data["status"] = sale_data.pop("delivery_status")
 
     # 2. Handle 'delivery_date'
-    if "delivery_date" in sale_data and isinstance(sale_data["delivery_date"], str):
-        d_str = sale_data["delivery_date"]
-        try:
-            dt = datetime.strptime(d_str, "%d/%m/%Y")
-            sale_data["delivery_date"] = dt
-        except ValueError:
-            try:
-                dt = datetime.strptime(d_str, "%Y-%m-%d")
-                sale_data["delivery_date"] = dt
-            except ValueError:
-                 raise HTTPException(status_code=400, detail=f"Invalid date format: {d_str}")
+    # 2. Handle 'delivery_date'
+    if "delivery_date" in sale_data:
+        d_val = sale_data["delivery_date"]
+        if d_val:
+            if isinstance(d_val, str):
+                try:
+                    dt = datetime.strptime(d_val, "%d/%m/%Y")
+                    sale_data["delivery_date"] = dt
+                except ValueError:
+                    try:
+                        dt = datetime.strptime(d_val, "%Y-%m-%d")
+                        sale_data["delivery_date"] = dt
+                    except ValueError:
+                         print(f"WARNING: Invalid delivery_date format: {d_val}. Ignoring.", flush=True)
+                         del sale_data["delivery_date"]
+            # If it's already datetime/date, leave it.
+        else:
+            # If null/empty string, remove it so DB uses default or NULL
+            del sale_data["delivery_date"]
 
     # 3. Clean up extra fields not in Order model
     # customer_name, phone, seller_name might be in schema but not model
