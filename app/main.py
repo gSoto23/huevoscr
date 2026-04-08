@@ -7,7 +7,7 @@ load_dotenv()
 
 from .database import engine, Base
 from .api import auth, customers, config, sales, users, conversations, webhook, messaging
-from .routers import pages
+from .routers import pages, marketing
 
 # Create tables
 Base.metadata.create_all(bind=engine)
@@ -24,7 +24,7 @@ app.include_router(conversations.router)
 app.include_router(webhook.router)
 app.include_router(messaging.router)
 app.include_router(pages.router)
-
+app.include_router(marketing.router)
 
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 

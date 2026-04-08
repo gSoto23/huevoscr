@@ -1,0 +1,297 @@
+{% extends "admin/base.html" %}
+{% block title %}Marketing - Huevos CR{% endblock %}
+{% block nav_mkt %}active{% endblock %}
+
+{% block content %}
+<div class="header">
+    <h1><i class="fa-solid fa-bullhorn"></i> Módulo de Marketing Masivo</h1>
+    <p>Sincroniza plantillas de Meta y envía campañas por WhatsApp.</p>
+</div>
+
+<!-- TABS -->
+<div class="tabs" style="display: flex; gap: 10px; margin-bottom: 20px;">
+    <button class="btn-primary" onclick="showTab('templates')">1. Sincronizar Plantillas</button>
+    <button class="btn-secondary" onclick="showTab('campaigns')">2. Crear Campaña</button>
+</div>
+
+<!-- TAB: TEMPLATES -->
+<div id="tab-templates" style="display: block;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+        <h2><i class="fa-solid fa-file-lines"></i> Plantillas Locales</h2>
+        <button class="btn-primary" onclick="syncTemplates()" id="btn-sync">
+            <i class="fa-solid fa-rotate"></i> Sincronizar desde Meta
+        </button>
+    </div>
+    <div class="table-responsive">
+        <table>
+            <thead>
+                <tr>
+                    <th>Nombre</th>
+                    <th>Idioma</th>
+                    <th>Estado Meta</th>
+                    <th>Actualizada</th>
+                </tr>
+            </thead>
+            <tbody id="templates-list">
+                <tr><td colspan="4">Cargando plantillas...</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- TAB: CAMPAIGNS -->
+<div id="tab-campaigns" style="display: none;">
+    <h2><i class="fa-solid fa-rocket"></i> Nueva Campaña</h2>
+    <div style="background: #fff; padding: 20px; border-radius: 8px; border: 1px solid #ddd;">
+        <div style="margin-bottom: 15px;">
+            <label><strong>Nombre de la Campaña:</strong></label><br>
+            <input type="text" id="camp-name" placeholder="Ej. Promo Mes de Madres" style="width: 100%; padding: 8px; margin-top: 5px;">
+        </div>
+        
+        <div style="margin-bottom: 15px;">
+            <label><strong>Seleccionar Plantilla:</strong></label><br>
+            <select id="camp-template" onchange="parseTemplateVariables()" style="width: 100%; padding: 8px; margin-top: 5px;">
+                <option value="">Cargando...</option>
+            </select>
+        </div>
+
+        <div id="mapping-container" style="display: none; background: #fafafa; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+            <h4>Mapeo de Variables</h4>
+            <p style="font-size: 0.9em; color: #555;">La plantilla seleccionada requiere variables. Selecciona con qué dato del cliente se llenará cada una.</p>
+            <div id="mapping-fields"></div>
+        </div>
+        
+        <button class="btn-primary" onclick="createCampaign()" id="btn-create-camp">Crear Campaña</button>
+    </div>
+    
+    <!-- EXECUTE CAMPAIGN PANEL (Visible after create) -->
+    <div id="execute-panel" style="display: none; margin-top: 30px; background: #fff; padding: 20px; border-radius: 8px; border: 1px solid var(--color-yellow);">
+        <h2><i class="fa-solid fa-users"></i> Destinatarios y Ejecución</h2>
+        <p>Campaña <strong id="exec-camp-name"></strong> creada exitosamente.</p>
+        <div style="margin-bottom: 15px;">
+            <label><strong>Lista de Clientes (Whatsapp ID separados por coma o salto de línea):</strong></label><br>
+            <textarea id="camp-recipients" rows="5" style="width: 100%; padding: 8px; margin-top: 5px;" placeholder="50688888888, 50677777777..."></textarea>
+            <p style="font-size: 0.85rem; color: #666;">En una fase futura podrás seleccionarlos desde un DataGrid. Por ahora pega los IDs o extraélos de la vista Clientes.</p>
+        </div>
+        <button class="btn-secondary" onclick="addRecipients()">Asignar Destinatarios</button>
+        
+        <hr style="margin: 20px 0; border: 0; border-top: 1px solid #ddd;">
+        
+        <button class="btn-primary" style="font-size: 1.1rem; padding: 15px;" onclick="executeCampaign()" id="btn-execute">
+            <i class="fa-solid fa-paper-plane"></i> 🔥 Iniciar Envío Masivo
+        </button>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let currentTemplates = [];
+    let currentCampaignId = null;
+
+    function showTab(tab) {
+        document.getElementById('tab-templates').style.display = tab === 'templates' ? 'block' : 'none';
+        document.getElementById('tab-campaigns').style.display = tab === 'campaigns' ? 'block' : 'none';
+        
+        if (tab === 'templates') loadTemplates();
+        if (tab === 'campaigns') renderTemplateSelect();
+    }
+
+    async function loadTemplates() {
+        try {
+            const res = await fetch('/api/v1/marketing/templates', { headers: authHeaders() });
+            const data = await res.json();
+            currentTemplates = data;
+            
+            const tbody = document.getElementById('templates-list');
+            tbody.innerHTML = '';
+            
+            if (data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4">No hay plantillas. Por favor sincroniza.</td></tr>';
+                return;
+            }
+            
+            data.forEach(t => {
+                tbody.innerHTML += `
+                    <tr>
+                        <td><strong>${t.name}</strong></td>
+                        <td>${t.language}</td>
+                        <td>
+                            <span style="padding: 4px 8px; border-radius: 4px; background: ${t.status==='APPROVED'?'#d4edda':'#f8d7da'}; color: ${t.status==='APPROVED'?'#155724':'#721c24'}">
+                                ${t.status}
+                            </span>
+                        </td>
+                        <td>${new Date(t.updated_at).toLocaleString()}</td>
+                    </tr>
+                `;
+            });
+        } catch (e) {
+            showToast("Error cargando plantillas.", "error");
+        }
+    }
+
+    async function syncTemplates() {
+        const btn = document.getElementById('btn-sync');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Sincronizando...';
+        
+        try {
+            const res = await fetch('/api/v1/marketing/templates/sync', { method: 'POST', headers: authHeaders() });
+            const data = await res.json();
+            if(res.ok) {
+                showToast(`Sincronización exitosa: ${data.synced} plantillas.`);
+                loadTemplates();
+            } else {
+                showToast(data.detail, "error");
+            }
+        } catch (e) {
+            showToast("Error en sincronización.", "error");
+        }
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-rotate"></i> Sincronizar desde Meta';
+    }
+
+    function renderTemplateSelect() {
+        const sel = document.getElementById('camp-template');
+        sel.innerHTML = '<option value="">-- Seleccione Plantilla Aprobada --</option>';
+        currentTemplates.filter(t => t.status === "APPROVED").forEach(t => {
+            sel.innerHTML += `<option value="${t.id}">${t.name} (${t.language})</option>`;
+        });
+    }
+
+    function parseTemplateVariables() {
+        const id = document.getElementById('camp-template').value;
+        const ctr = document.getElementById('mapping-container');
+        const mapf = document.getElementById('mapping-fields');
+        mapf.innerHTML = '';
+        
+        if(!id) { ctr.style.display = 'none'; return; }
+        
+        const tpl = currentTemplates.find(x => x.id == id);
+        if(!tpl) return;
+        
+        // Simular deteccion de variables {{1}}, {{2}} de los componentes de cuerpo
+        let compObj = [];
+        try { compObj = JSON.parse(tpl.components); } catch(e){}
+        
+        let highestVar = 0;
+        // Solo como ejemplo sencillo, se busca texto con {{N}}
+        compObj.forEach(c => {
+            if(c.text) {
+                let matches = c.text.match(/\{\{(\d+)\}\}/g);
+                if(matches) {
+                    matches.forEach(m => {
+                        let num = parseInt(m.replace(/\{|\}/g, ''));
+                        if(num > highestVar) highestVar = num;
+                    });
+                }
+            }
+        });
+        
+        if (highestVar > 0) {
+            ctr.style.display = 'block';
+            for(let i=1; i<=highestVar; i++) {
+                let varDisplay = "{{" + i + "}}";
+                mapf.innerHTML += `
+                    <div style="margin-bottom: 10px;">
+                        <label>Variable ` + varDisplay + `:</label>
+                        <select id="var-${i}" style="padding: 5px; width: 200px; margin-left: 10px;">
+                            <option value="name">Nombre del Cliente</option>
+                            <option value="whatsapp_id">Número de Teléfono</option>
+                            <option value="address">Dirección</option>
+                            <option value="periodicity">Periodicidad</option>
+                        </select>
+                    </div>
+                `;
+            }
+        } else {
+            ctr.style.display = 'none';
+        }
+    }
+
+    async function createCampaign() {
+        const name = document.getElementById('camp-name').value;
+        const tid = document.getElementById('camp-template').value;
+        if(!name || !tid) return showToast("Completar campos", "error");
+        
+        // Construir Mapping JSON
+        let mapping = {};
+        const ctr = document.getElementById('mapping-container');
+        if(ctr.style.display !== 'none') {
+            const selects = mapf = document.getElementById('mapping-fields').querySelectorAll('select');
+            selects.forEach(s => {
+                const varNum = s.id.split('-')[1];
+                mapping[varNum] = s.value;
+            });
+        }
+        
+        try {
+            const res = await fetch('/api/v1/marketing/campaigns', {
+                method: 'POST',
+                headers: authHeaders(),
+                body: JSON.stringify({
+                    name: name,
+                    template_id: parseInt(tid),
+                    variables_mapping: JSON.stringify(mapping)
+                })
+            });
+            const data = await res.json();
+            if(res.ok) {
+                showToast("Campaña Creada");
+                currentCampaignId = data.id;
+                document.getElementById('exec-camp-name').innerText = data.name;
+                document.getElementById('execute-panel').style.display = 'block';
+                document.getElementById('btn-create-camp').style.display = 'none';
+            } else {
+                showToast(data.detail, "error");
+            }
+        } catch(e) {
+            showToast("Error", "error");
+        }
+    }
+
+    async function addRecipients() {
+        if(!currentCampaignId) return;
+        const text = document.getElementById('camp-recipients').value;
+        const ids = text.split(/[\n,]+/).map(i => i.trim()).filter(i => i!== "");
+        
+        if(ids.length === 0) return showToast("Lista vacía", "error");
+        
+        try {
+            const res = await fetch(`/api/v1/marketing/campaigns/${currentCampaignId}/recipients`, {
+                method: 'POST',
+                headers: authHeaders(),
+                body: JSON.stringify({ whatsapp_ids: ids })
+            });
+            if(res.ok) showToast("Destinatarios asignados listos para envío.");
+            else showToast("Error", "error");
+        } catch(e) { showToast("Error", "error"); }
+    }
+
+    async function executeCampaign() {
+        if(!currentCampaignId) return;
+        const btn = document.getElementById('btn-execute');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Procesando envíos...';
+        
+        try {
+            const res = await fetch(`/api/v1/marketing/campaigns/${currentCampaignId}/execute`, {
+                method: 'POST',
+                headers: authHeaders()
+            });
+            const data = await res.json();
+            if(res.ok) {
+                showToast("🔥 " + data.message + " Revisa los logs o BD para estado.", "success");
+            } else {
+                showToast(data.detail, "error");
+            }
+        } catch(e) { showToast("Error", "error"); }
+    }
+
+    // Init
+    window.onload = () => {
+        loadTemplates();
+    };
+</script>
+{% endblock %}

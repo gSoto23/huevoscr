@@ -30,6 +30,10 @@ async def admin_sales(request: Request):
 async def admin_config(request: Request):
     return templates.TemplateResponse("admin/config.html", {"request": request})
 
+@router.get("/admin/marketing", response_class=HTMLResponse)
+async def admin_marketing(request: Request):
+    return templates.TemplateResponse("admin/marketing.html", {"request": request})
+
 @router.get("/admin/support", response_class=HTMLResponse)
 async def admin_support(request: Request):
     return templates.TemplateResponse("admin/support.html", {"request": request})

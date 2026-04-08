@@ -124,3 +124,54 @@ class Order(OrderBase):
 
     class Config:
         orm_mode = True
+
+# --- Marketing Schemas ---
+class MarketingTemplateBase(BaseModel):
+    meta_id: str
+    name: str
+    language: str
+    components: str
+    status: str
+
+class MarketingTemplateCreate(MarketingTemplateBase):
+    pass
+
+class MarketingTemplate(MarketingTemplateBase):
+    id: int
+    updated_at: datetime
+    
+    class Config:
+        orm_mode = True
+
+class CampaignCreate(BaseModel):
+    name: str
+    template_id: int
+    variables_mapping: Optional[str] = None # JSON string
+
+class Campaign(BaseModel):
+    id: int
+    name: str
+    template_id: int
+    variables_mapping: Optional[str] = None
+    created_at: datetime
+    status: str
+
+    class Config:
+        orm_mode = True
+
+class CampaignRecipientCreate(BaseModel):
+    whatsapp_id: str
+
+class CampaignRecipientAddList(BaseModel):
+    whatsapp_ids: List[str]
+
+class CampaignRecipient(BaseModel):
+    id: int
+    campaign_id: int
+    whatsapp_id: str
+    status: str
+    error_message: Optional[str] = None
+    sent_at: Optional[datetime] = None
+
+    class Config:
+        orm_mode = True

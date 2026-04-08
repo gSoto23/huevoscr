@@ -72,3 +72,42 @@ class Config(Base):
     
     key = Column(String, primary_key=True, index=True)
     value = Column(String)
+
+class MarketingTemplate(Base):
+    __tablename__ = "marketing_templates"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    meta_id = Column(String, unique=True, index=True)
+    name = Column(String)
+    language = Column(String)
+    components = Column(Text) # JSON string of template structure
+    status = Column(String)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    campaigns = relationship("Campaign", back_populates="template")
+
+class Campaign(Base):
+    __tablename__ = "campaigns"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String)
+    template_id = Column(Integer, ForeignKey("marketing_templates.id"))
+    variables_mapping = Column(Text, nullable=True) # JSON dictionary {"1": "name", etc}
+    created_at = Column(DateTime, default=datetime.utcnow)
+    status = Column(String, default="draft") # draft, running, completed
+    
+    template = relationship("MarketingTemplate", back_populates="campaigns")
+    recipients = relationship("CampaignRecipient", back_populates="campaign")
+
+class CampaignRecipient(Base):
+    __tablename__ = "campaign_recipients"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    campaign_id = Column(Integer, ForeignKey("campaigns.id"))
+    whatsapp_id = Column(String, ForeignKey("customers.whatsapp_id"))
+    status = Column(String, default="pending") # pending, sent, failed
+    error_message = Column(Text, nullable=True)
+    sent_at = Column(DateTime, nullable=True)
+    
+    campaign = relationship("Campaign", back_populates="recipients")
+    customer = relationship("Customer")
