@@ -1,4 +1,6 @@
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, status
+from fastapi.responses import JSONResponse, PlainTextResponse, Response
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from dotenv import load_dotenv
@@ -14,6 +16,38 @@ Base.metadata.create_all(bind=engine)
 
 
 app = FastAPI(title="Huevos CR")
+
+# CORS Settings
+origins = [
+    "http://localhost",
+    "http://localhost:8000",
+    "http://127.0.0.1:8000",
+    "https://huevoscr.com",
+    "https://www.huevoscr.com",
+    "https://admin.huevoscr.com"
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Global Exception Handler
+import logging
+import traceback
+logger = logging.getLogger(__name__)
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    logger.error(f"Unmet system exception at {request.url}: {exc}\\n{traceback.format_exc()}")
+    return JSONResponse(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        content={"detail": "Ha ocurrido un error interno en el servidor."},
+    )
+
 
 app.include_router(auth.router)
 app.include_router(customers.router)
@@ -38,6 +72,40 @@ async def read_root(request: Request):
 @app.get("/health")
 def health_check():
     return {"status": "ok"}
+
+@app.get("/robots.txt", response_class=PlainTextResponse)
+def robots_txt():
+    content = """User-agent: *
+Disallow: /admin/
+Disallow: /seller/
+Disallow: /login
+Allow: /
+
+Sitemap: https://www.huevoscr.com/sitemap.xml
+"""
+    return content
+
+@app.get("/sitemap.xml")
+def sitemap():
+    content = """<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://www.huevoscr.com/</loc>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+  </url>
+  <url>
+    <loc>https://www.huevoscr.com/privacy-policy</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://www.huevoscr.com/terms-of-service</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+</urlset>"""
+    return Response(content=content, media_type="application/xml")
 
 @app.get("/privacy-policy")
 async def privacy_policy(request: Request):

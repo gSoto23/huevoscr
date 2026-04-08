@@ -23,6 +23,11 @@ tunnel.log
 .vscode/
 .idea/
 
-# Temporary Scripts (Optional - commenting out, user might want them)
-# seed_*.py
-# test_*.py
+# Temporary Scripts & Ad-hoc files
+seed_*.py
+test_*.py
+add_*.py
+check_*.py
+create_admin.py
+fix_config.py
+scripts/

@@ -92,6 +92,15 @@ huevoscr/
 
 ---
 
+## 🔒 Consideraciones de Seguridad
+
+El sistema cuenta con configuraciones dedicadas para proteger los datos en entornos abiertos:
+- **Validación Estricta de Webhook:** El sistema rechaza cualquier solicitud de verificación de Meta si la variable de entorno `WHATSAPP_VERIFY_TOKEN` está vacía o si se está usando una clave insegura. Esto impide que actores externos secuestren tu punto de enganche (webhook).
+- **Protección de Dominios (CORS):** El API principal contiene un `CORSMiddleware` explícito y está restringido. Asegúrate de modificar `origins` en `app/main.py` antes de subir a un nuevo dominio.
+- **Loggings Seguros y Traza Oculta:** FastAPI interceptará cualquier excepción interna 500 para evitar mostrar la estructura de tus archivos o base de datos a un posible atacante. Para depurar fallas, verifica los logs internos seguros (`logging`).
+
+---
+
 ## 🚢 Despliegue en Producción (AWS)
 
 Para desplegar este proyecto en un servidor AWS Lightsail, consulta los siguientes documentos incluidos:
