@@ -103,7 +103,17 @@ El sistema cuenta con configuraciones dedicadas para proteger los datos en entor
 
 ## 🚢 Despliegue en Producción (AWS)
 
-Para desplegar este proyecto en un servidor AWS Lightsail, consulta los siguientes documentos incluidos:
+Para desplegar este proyecto en un servidor AWS Lightsail o EC2, cuenta con soporte híbrido nativo:
+
+### Variables de Producción (Opcionales en Desarrollo)
+Para activar la **Arquitectura Híbrida Inteligente** y conectar Huevos CR a la nube, asigna estas variables en tu `.env` del servidor en vivo:
+
+- `DATABASE_URL`: Activa PostgreSQL y elimina los bloqueos de SQLite. (Ej: `postgres://usuario:admin123@host:5432/db`)
+- `AWS_ACCESS_KEY_ID`: Tu llave pública de Amazon IAM.
+- `AWS_SECRET_ACCESS_KEY`: Tu llave secreta de Amazon.
+- `AWS_BUCKET_NAME`: Al proveerlo, las fotos de tus clientes viajarán de WhatsApp directamente a este bucket S3 (ideal para almacenamiento infinito) burlando el disco duro local.
+
+Consulta los siguientes documentos incluidos para mayor detalle:
 
 1.  **[DEPLOYMENT_PLAN.md](DEPLOYMENT_PLAN.md)**: Estrategia de arquitectura y backups.
 2.  **[README_DEPLOY.md](README_DEPLOY.md)**: Guía paso a paso para configurar el servidor desde cero.
