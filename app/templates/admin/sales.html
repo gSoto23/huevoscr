@@ -193,7 +193,8 @@
             const name = o.customer ? o.customer.name.toLowerCase() : '';
             const id = o.id.toString();
             const seller = o.seller_id ? o.seller_id.toString() : '';
-            return name.includes(query) || id.includes(query) || seller.includes(query);
+            const customerId = o.customer_id ? o.customer_id.toString() : '';
+            return name.includes(query) || id.includes(query) || seller.includes(query) || customerId.includes(query);
         });
         currentPage = 1; // Reset to page 1 on filter
         renderTable();
