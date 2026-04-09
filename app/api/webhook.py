@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Request, Depends, HTTPException, BackgroundTasks
+from fastapi import APIRouter, Request, Depends, HTTPException, BackgroundTasks, Body
 from sqlalchemy.orm import Session
 from .. import database, models
 from ..core import config
@@ -204,6 +204,10 @@ async def receive_whatsapp_message(
                         content = f"[BOTÓN CLICK: {btn_title}]\n[SYSTEM INSTRUCTION: El cliente confirmó mediante un botón que la ubicación es correcta. Confírmale de vuelta que la dirección de entrega fue guardada exitosamente y pregúntale cómo más le puedes ayudar con su pedido.]"
                     elif btn_id == "confirm_address_no":
                         content = f"[BOTÓN CLICK: {btn_title}]\n[SYSTEM INSTRUCTION: El cliente indicó que la ubicación registrada no sirve. Pídele que te comparta una mejor ubicación de GPS o que escriba su dirección manualmente para guardarla.]"
+                    elif btn_id == "confirm_order_yes":
+                         content = f"[BOTÓN CLICK: {btn_title}]\n[SYSTEM INSTRUCTION: El cliente acaba de confirmar su pedido mediante botón. Debes ejecutar de inmediato la creación de orden llamando a HTTP Request Crear Orden y confírmale al cliente.]"
+                    elif btn_id == "confirm_order_no":
+                         content = f"[BOTÓN CLICK: {btn_title}]\n[SYSTEM INSTRUCTION: El cliente rechazó confirmar su pedido mediante botón. Pídele amablemente que te indique qué desea modificar.]"
                     else:
                         content = f"[BOTÓN CLICK: {btn_title}]"
                 else:
@@ -265,3 +269,36 @@ async def receive_whatsapp_message(
         logger.error(f"ERROR PROCESSING WEBHOOK: {str(e)}", exc_info=True)
         # Return 200 to Meta to avoid retry loops, but log heavily
         return {"status": "error", "detail": "Webhook internal error"}
+
+@router.post("/n8n/send")
+async def n8n_proxy_send(
+    payload: dict = Body(...),
+    db: Session = Depends(database.get_db)
+):
+    """
+    Túnel especial para que n8n pase sus mensajes por Python antes de ir a WhatsApp.
+    Permite inyectar botones interactivos si se detectan palabras mágicas.
+    """
+    wa_service = WhatsAppService()
+    to = payload.get("to")
+    body = payload.get("body", "")
+    
+    if not to or not body:
+        return {"status": "error", "detail": "Missing 'to' or 'body'"}
+        
+    try:
+        if "[BOTONES_CONFIRMAR]" in body:
+            clean_text = body.replace("[BOTONES_CONFIRMAR]", "").strip()
+            buttons = [
+                {"id": "confirm_order_yes", "title": "✅ Sí, confirmar"},
+                {"id": "confirm_order_no", "title": "❌ Modificar pedido"}
+            ]
+            await wa_service.send_interactive_buttons(to, clean_text, buttons)
+        else:
+            await wa_service.send_message(to, body)
+            
+        return {"status": "sent"}
+    except Exception as e:
+        import traceback
+        logger.error(f"n8n proxy error: {str(e)}", exc_info=True)
+        return {"status": "error", "detail": str(e)}
