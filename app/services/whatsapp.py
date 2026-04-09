@@ -115,3 +115,41 @@ class WhatsAppService:
             response = await client.post(url, headers=headers, json=payload)
             response.raise_for_status()
             return response.json()
+
+    async def send_interactive_buttons(self, to: str, text: str, buttons: list):
+        url = f"{self.base_url}/{self.phone_id}/messages"
+        headers = {
+            "Authorization": f"Bearer {self.api_token}",
+            "Content-Type": "application/json"
+        }
+        
+        formatted_buttons = []
+        for btn in buttons[:3]:
+             formatted_buttons.append({
+                  "type": "reply",
+                  "reply": {
+                       "id": btn["id"],
+                       "title": btn["title"]
+                  }
+             })
+
+        payload = {
+            "messaging_product": "whatsapp",
+            "recipient_type": "individual",
+            "to": to,
+            "type": "interactive",
+            "interactive": {
+                "type": "button",
+                "body": {
+                    "text": text
+                },
+                "action": {
+                    "buttons": formatted_buttons
+                }
+            }
+        }
+        
+        async with httpx.AsyncClient() as client:
+            response = await client.post(url, headers=headers, json=payload)
+            response.raise_for_status()
+            return response.json()

@@ -178,7 +178,39 @@ async def receive_whatsapp_message(
             content = f"[UBICACIÓN ENVIADA: {maps_url}]"
             if addr_name or addr_text:
                 content += f" | {addr_name} - {addr_text}"
-            content += "\n[SYSTEM INSTRUCTION: El sistema YA GUARDÓ automáticamente en la base de datos este pin del mapa. Por favor infórmale amablemente al cliente que su dirección de entrega (ubicación) fue actualizada y recibida con éxito.]"
+            content += "\n[SYSTEM INSTRUCTION: El sistema YA GUARDÓ esta ubicación en la base de datos y le envió 2 botones al cliente. Por favor NO RESPONDAS a este mensaje. Mantente en silencio hasta que confirme con uno de los botones.]"
+
+            # Enviar botones interactivos
+            buttons = [
+                {"id": "confirm_address_yes", "title": "✅ Sí, confirmar"},
+                {"id": "confirm_address_no", "title": "❌ Nueva dirección"}
+            ]
+            background_tasks.add_task(
+                wa_service.send_interactive_buttons,
+                wa_id,
+                "📍 Hemos recibido tu ubicación. ¿Confirmas que quieres registrarla como tu dirección de pedidos?",
+                buttons
+            )
+
+        elif msg_type == "interactive":
+            try:
+                interactive_type = message.get("interactive", {}).get("type")
+                if interactive_type == "button_reply":
+                    btn_reply = message["interactive"]["button_reply"]
+                    btn_id = btn_reply.get("id")
+                    btn_title = btn_reply.get("title")
+                    
+                    if btn_id == "confirm_address_yes":
+                        content = f"[BOTÓN CLICK: {btn_title}]\n[SYSTEM INSTRUCTION: El cliente confirmó mediante un botón que la ubicación es correcta. Confírmale de vuelta que la dirección de entrega fue guardada exitosamente y pregúntale cómo más le puedes ayudar con su pedido.]"
+                    elif btn_id == "confirm_address_no":
+                        content = f"[BOTÓN CLICK: {btn_title}]\n[SYSTEM INSTRUCTION: El cliente indicó que la ubicación registrada no sirve. Pídele que te comparta una mejor ubicación de GPS o que escriba su dirección manualmente para guardarla.]"
+                    else:
+                        content = f"[BOTÓN CLICK: {btn_title}]"
+                else:
+                    content = f"[{msg_type.upper()}: {interactive_type}]"
+            except Exception as e:
+                logger.error(f"Error parsing interactive msg: {e}")
+                content = f"[{msg_type.upper()} message]"
 
         else:
             content = f"[{msg_type} message]"
