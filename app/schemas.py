@@ -42,8 +42,10 @@ class CustomerUpdate(BaseModel):
     payment_method: Optional[str] = None
     seller_id: Optional[int] = None
     is_active: Optional[bool] = None
+    ai_active: Optional[bool] = None
     last_message_content: Optional[str] = None
     last_message_ts: Optional[datetime] = None
+    last_customer_msg_ts: Optional[datetime] = None
     pending_receipt_media_id: Optional[str] = None
     pending_receipt_caption: Optional[str] = None
     pending_receipt_ts: Optional[datetime] = None
@@ -52,9 +54,11 @@ class CustomerUpdate(BaseModel):
 
 class Customer(CustomerBase):
     is_active: bool
+    ai_active: bool = True
     status_changed_at: Optional[datetime] = None
     last_message_content: Optional[str] = None
     last_message_ts: Optional[datetime] = None
+    last_customer_msg_ts: Optional[datetime] = None
     n8n_context: Optional[str] = None
     pending_receipt_media_id: Optional[str] = None
     pending_receipt_caption: Optional[str] = None

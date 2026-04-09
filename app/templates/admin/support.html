@@ -44,6 +44,8 @@
     }
     .chat-img-preview {
         max-width: 100%;
+        max-height: 250px;
+        object-fit: contain;
         border-radius: 8px;
         margin-bottom: 5px;
         display: block;
@@ -181,7 +183,7 @@
             customers.forEach(c => {
                 const tr = document.createElement('tr');
                 const sellerName = c.seller ? c.seller.username : '<span style="color:#999">N/A</span>';
-                const defaults = `<div>${c.cartons_qty} cartONES</div><div style="font-size:0.8rem; color:#666;">${c.payment_method}</div>`;
+                const defaults = `<div>${c.cartons_qty} cartones</div><div style="font-size:0.8rem; color:#666;">${c.payment_method}</div>`;
                 
                 const contextIcon = `<span title="Ver historial de chat" style="cursor:pointer; color:#0d6efd; font-size:1.2rem;" onclick="openContextModal('${c.whatsapp_id}')">💬</span>`;
 
@@ -248,7 +250,8 @@
         if (!activeCustomer) return;
         
         const isAIOn = document.getElementById('aiToggle').checked;
-        const msgTs = activeCustomer.last_customer_msg_ts ? new Date(activeCustomer.last_customer_msg_ts) : new Date(0);
+        const tsString = activeCustomer.last_customer_msg_ts;
+        const msgTs = tsString ? new Date(tsString.endsWith('Z') ? tsString : tsString + 'Z') : new Date(0);
         const hoursPassed = (new Date() - msgTs) / (1000 * 60 * 60);
 
         const inputArea = document.getElementById('chatMessage');
