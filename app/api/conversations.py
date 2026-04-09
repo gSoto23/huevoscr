@@ -182,7 +182,43 @@ async def send_manual_message(
             elif "pdf" in file.content_type or "doc" in file.content_type: media_type = "document"
             
             await wa_service.send_media(whatsapp_id, media_id, media_type, caption=text or "")
-            content_log = f"[{media_type.upper()} sent]" + (f" {text}" if text else "")
+            
+            import os
+            import uuid
+            import mimetypes
+            import boto3
+            from pathlib import Path
+            
+            ext = mimetypes.guess_extension(file.content_type)
+            if not ext:
+                if media_type == "image": ext = ".jpg"
+                elif media_type == "video": ext = ".mp4"
+                elif media_type == "document": ext = ".pdf"
+                else: ext = ".bin"
+                
+            filename = f"{uuid.uuid4()}{ext}"
+            bucket_name = os.getenv("AWS_BUCKET_NAME")
+            folder = "admin_media"
+            
+            if bucket_name:
+                s3_path = f"public/{folder}/{filename}"
+                s3_client = boto3.client('s3')
+                s3_client.put_object(
+                    Bucket=bucket_name,
+                    Key=s3_path,
+                    Body=file_bytes,
+                    ContentType=file.content_type,
+                )
+                media_url_for_log = f"https://{bucket_name}.s3.amazonaws.com/{s3_path}"
+            else:
+                upload_dir = Path(f"app/static/{folder}")
+                upload_dir.mkdir(parents=True, exist_ok=True)
+                file_path = upload_dir / filename
+                with open(file_path, "wb") as f:
+                    f.write(file_bytes)
+                media_url_for_log = f"/static/{folder}/{filename}"
+            
+            content_log = f"[MEDIA: {media_url_for_log}]" + (f" {text}" if text else "")
         elif text:
             await wa_service.send_message(whatsapp_id, text)
             content_log = text
