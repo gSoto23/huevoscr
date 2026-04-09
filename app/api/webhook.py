@@ -167,10 +167,22 @@ async def receive_whatsapp_message(
                 content = f"[{msg_type.upper()} - DOWNLOAD FAILED] {caption}"
                 logger.error(f"Failed to get URL for media ID: {media_id}")
 
+        elif msg_type == "location":
+            loc_data = message.get("location", {})
+            lat = loc_data.get("latitude", "")
+            lng = loc_data.get("longitude", "")
+            addr_name = loc_data.get("name", "")
+            addr_text = loc_data.get("address", "")
+            maps_url = f"https://maps.google.com/?q={lat},{lng}"
+            
+            content = f"[UBICACIÓN ENVIADA: {maps_url}]"
+            if addr_name or addr_text:
+                content += f" | {addr_name} - {addr_text}"
+            content += "\n[SYSTEM INSTRUCTION: El sistema YA GUARDÓ automáticamente en la base de datos este pin del mapa. Por favor infórmale amablemente al cliente que su dirección de entrega (ubicación) fue actualizada y recibida con éxito.]"
+
         else:
             content = f"[{msg_type} message]"
 
-        # Construct payload for Service
         msg_data = {
             "whatsapp_id": wa_id,
             "customer_name": name,
@@ -179,7 +191,8 @@ async def receive_whatsapp_message(
             "timestamp": ts_iso,
             "media_url": media_url, # None for now unless we resolve it
             "type": msg_type,
-            "sender": wa_id
+            "sender": wa_id,
+            "location_pin": maps_url if msg_type == "location" else None
         }
 
         # 3. Process & Save
