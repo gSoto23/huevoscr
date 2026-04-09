@@ -30,8 +30,17 @@ async def send_whatsapp_message(
     service = WhatsAppService()
     
     try:
-        # 1. Send via Graph API
-        response = await service.send_message(payload.to, payload.body)
+        if "[BOTONES_CONFIRMAR]" in payload.body:
+            clean_body = payload.body.replace("[BOTONES_CONFIRMAR]", "").strip()
+            buttons = [
+                {"id": "confirm_order_yes", "title": "✅ Sí, confirmar"},
+                {"id": "confirm_order_no", "title": "❌ Modificar pedido"}
+            ]
+            response = await service.send_interactive_buttons(payload.to, clean_body, buttons)
+            payload.body = clean_body
+        else:
+            # 1. Send via Graph API
+            response = await service.send_message(payload.to, payload.body)
         
         # 2. Log Outbound Message
         msg_data = {
