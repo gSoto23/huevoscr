@@ -3,6 +3,70 @@
 {% block nav_support %}active{% endblock %}
 
 {% block content %}
+<style>
+    /* Estilos del Chat */
+    .chat-container {
+        display: flex;
+        flex-direction: column;
+        height: 60vh;
+        background-color: #efeae2;
+        padding: 15px;
+        overflow-y: auto;
+        border-radius: 8px;
+        margin-bottom: 10px;
+        background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png');
+    }
+    .chat-bubble {
+        max-width: 75%;
+        padding: 8px 12px;
+        border-radius: 8px;
+        margin-bottom: 10px;
+        font-size: 0.95rem;
+        position: relative;
+        word-wrap: break-word;
+    }
+    .chat-bubble.incoming {
+        align-self: flex-start;
+        background-color: #ffffff;
+        border-top-left-radius: 0;
+    }
+    .chat-bubble.outgoing {
+        align-self: flex-end;
+        background-color: #d9fdd3;
+        border-top-right-radius: 0;
+    }
+    .chat-time {
+        font-size: 0.70rem;
+        color: #777;
+        text-align: right;
+        margin-top: 4px;
+        display: block;
+    }
+    .chat-img-preview {
+        max-width: 100%;
+        border-radius: 8px;
+        margin-bottom: 5px;
+        display: block;
+    }
+    
+    .chat-input-area {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        background: #f0f2f5;
+        padding: 10px;
+        border-radius: 8px;
+    }
+    
+    .btn-attach {
+        background: transparent;
+        border: none;
+        font-size: 1.5rem;
+        color: #54656f;
+        cursor: pointer;
+    }
+</style>
+
 <h1>Registro de Ventas (IA)</h1>
 
 <div class="card">
@@ -34,36 +98,81 @@
         </table>
     </div>
 </div>
+
+<!-- Context Modal -->
+<div id="contextModal" class="modal"
+    style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); align-items:center; justify-content:center; z-index:2000;">
+    <div style="background:white; padding:20px; border-radius:8px; width:95%; max-width:800px; position:relative; display:flex; flex-direction:column;">
+        
+        <!-- Header -->
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; border-bottom:1px solid #ddd; padding-bottom:10px;">
+            <h4 style="margin:0;">Chat: <span id="chatTitle"></span></h4>
+            <div style="display:flex; gap:15px; align-items:center;">
+                <!-- Rango de Fechas -->
+                <div style="display:flex; gap: 5px; align-items:center;">
+                    <input type="date" id="dateStart" class="form-control" style="padding: 2px; font-size: 0.8rem;" onchange="filterContext()">
+                    <span> - </span>
+                    <input type="date" id="dateEnd" class="form-control" style="padding: 2px; font-size: 0.8rem;" onchange="filterContext()">
+                </div>
+                
+                <label style="display:flex; align-items:center; cursor:pointer;" title="Pausar IA para hablar manual">
+                    <input type="checkbox" id="aiToggle" onchange="toggleAI()" style="width:18px; height:18px; margin-right:5px;">
+                    <span id="aiLabel">🤖 IA: ON</span>
+                </label>
+                <span onclick="closeContextModal()" style="cursor:pointer; font-size:1.5rem;">&times;</span>
+            </div>
+        </div>
+
+        <!-- Chat Body -->
+        <div id="contextBody" class="chat-container">
+            <!-- Bubbles will go here -->
+        </div>
+
+        <!-- Alerta 24 hrs -->
+        <div id="windowAlert" style="display:none; background:#ffecb5; color:#664d03; padding:10px; border-radius:8px; margin-bottom:10px; font-size:0.9rem; align-items:center; justify-content:space-between;">
+            <span>⚠️ Ventana de 24h vencida. La Meta API no permite responder manual con texto.</span>
+            <div style="display:flex; gap:5px;">
+                <select id="templateSelect" class="form-control" style="width: auto; padding: 2px;">
+                    <option value="">Cargando templates...</option>
+                </select>
+                <button class="btn-primary" onclick="reactivateChat()" style="padding: 4px 8px; font-size:0.85rem;">Mandar Plantilla</button>
+            </div>
+        </div>
+
+        <!-- Footer Carga de Mensaje -->
+        <div class="chat-input-area" id="chatInputArea">
+            <input type="file" id="chatAttachment" style="display:none;" accept="image/*,video/*,application/pdf">
+            <button class="btn-attach" onclick="document.getElementById('chatAttachment').click()"><i class="fa-solid fa-paperclip"></i></button>
+            <input type="text" id="chatMessage" placeholder="Escribe un mensaje (IA debe estar apagada)..." class="form-control" style="flex:1;" onkeypress="if(event.key === 'Enter') sendMessage()">
+            <button class="btn-primary" onclick="sendMessage()"><i class="fa-solid fa-paper-plane"></i></button>
+        </div>
+
+    </div>
+</div>
+
 {% endblock %}
 
 {% block scripts %}
 <script>
     let customersDataCache = [];
+    let templatesCache = [];
+    let activeCustomer = null;
 
     async function loadCustomers() {
         const tbody = document.querySelector('#customersTable tbody');
         try {
             const res = await fetch('/customers/', { headers: authHeaders() });
-
-            if (res.status === 401) {
-                window.location.href = '/login';
-                return;
-            }
-
-            if (!res.ok) throw new Error('Error loading customers');
-
+            if (res.status === 401) { window.location.href = '/login'; return; }
             const customers = await res.json();
             customersDataCache = customers;
 
-            // Sort by name or recent activity? Let's sort by recent activity if available, else name
             customers.sort((a, b) => {
                 const dateA = a.last_message_ts ? new Date(a.last_message_ts) : new Date(0);
                 const dateB = b.last_message_ts ? new Date(b.last_message_ts) : new Date(0);
-                return dateB - dateA; // Newest activity first
+                return dateB - dateA;
             });
 
             tbody.innerHTML = '';
-
             if (customers.length === 0) {
                 tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;">No hay clientes registrados.</td></tr>';
                 return;
@@ -71,29 +180,15 @@
 
             customers.forEach(c => {
                 const tr = document.createElement('tr');
-
-                // Seller Info
                 const sellerName = c.seller ? c.seller.username : '<span style="color:#999">N/A</span>';
-
-                // Defaults
-                const defaults = `
-                    <div>${c.cartons_qty} cartones</div>
-                    <div style="font-size:0.8rem; color:#666;">${c.payment_method}</div>
-                `;
-
-                // Context Icon
-                let contextIcon = '-';
-                if (c.n8n_context && c.n8n_context.trim() !== "") {
-                    contextIcon = `<span title="Ver historial de chat" style="cursor:pointer; color:#0d6efd; font-size:1.2rem;" onclick="openContextModal('${c.whatsapp_id}')">🤖</span>`;
-                }
+                const defaults = `<div>${c.cartons_qty} cartONES</div><div style="font-size:0.8rem; color:#666;">${c.payment_method}</div>`;
+                
+                const contextIcon = `<span title="Ver historial de chat" style="cursor:pointer; color:#0d6efd; font-size:1.2rem;" onclick="openContextModal('${c.whatsapp_id}')">💬</span>`;
 
                 tr.innerHTML = `
                     <td>${c.whatsapp_id}</td>
-                    <td>
-                        <div style="font-weight:bold;">${c.name}</div>
-                        <div style="font-size:0.8rem; color:#666;">${c.email || ''}</div>
-                    </td>
-                    <td style="font-size:0.9rem; max-width:250px;">${c.address}</td>
+                    <td><div style="font-weight:bold;">${c.name}</div></td>
+                    <td style="font-size:0.9rem;">${c.address}</td>
                     <td>${c.periodicity}</td>
                     <td>${defaults}</td>
                     <td>${sellerName}</td>
@@ -101,125 +196,253 @@
                 `;
                 tbody.appendChild(tr);
             });
-
         } catch (e) {
             console.error(e);
             tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:red;">Error cargando datos.</td></tr>';
         }
     }
 
-    function openContextModal(waId) {
-        const customer = customersDataCache.find(c => c.whatsapp_id === waId);
-        if (!customer || !customer.n8n_context) return;
-
-        // Store current context in a global variable to filter it later
-        currentContextText = customer.n8n_context;
-
-        // Clear filter input
-        document.getElementById('contextFilter').value = '';
-
-        filterContext(); // Render content
-        document.getElementById('contextModal').style.display = 'flex';
+    async function loadTemplates() {
+        try {
+            const res = await fetch('/api/v1/marketing/templates', { headers: authHeaders() });
+            if(res.ok) {
+                templatesCache = await res.json();
+                const sel = document.getElementById('templateSelect');
+                sel.innerHTML = '<option value="">Seleccionar plantilla...</option>';
+                templatesCache.filter(t => t.status === "APPROVED").forEach(t => {
+                    sel.innerHTML += `<option value="${t.id}">${t.name}</option>`;
+                });
+            }
+        } catch(e) { console.error('Error load templates', e); }
     }
 
-    let currentContextText = "";
+    function openContextModal(waId) {
+        activeCustomer = customersDataCache.find(c => c.whatsapp_id === waId);
+        if (!activeCustomer) return;
+
+        document.getElementById('chatTitle').innerText = activeCustomer.name || waId;
+        
+        // Reset inputs
+        document.getElementById('chatMessage').value = '';
+        document.getElementById('chatAttachment').value = '';
+        document.getElementById('dateStart').value = '';
+        document.getElementById('dateEnd').value = '';
+
+        // Setup AI Toggle UI
+        const isAIOn = activeCustomer.ai_active !== false; // true by default
+        document.getElementById('aiToggle').checked = isAIOn;
+        document.getElementById('aiLabel').innerText = isAIOn ? "🤖 IA: ON" : "🧑‍💻 Manual: OFF";
+
+        updateInputState();
+        filterContext();
+        document.getElementById('contextModal').style.display = 'flex';
+        
+        // Scroll to bottom
+        setTimeout(() => {
+            const chatBody = document.getElementById('contextBody');
+            chatBody.scrollTop = chatBody.scrollHeight;
+        }, 100);
+    }
+
+    function updateInputState() {
+        if (!activeCustomer) return;
+        
+        const isAIOn = document.getElementById('aiToggle').checked;
+        const msgTs = activeCustomer.last_customer_msg_ts ? new Date(activeCustomer.last_customer_msg_ts) : new Date(0);
+        const hoursPassed = (new Date() - msgTs) / (1000 * 60 * 60);
+
+        const inputArea = document.getElementById('chatMessage');
+        const fileBtn = document.querySelector('.btn-attach');
+        
+        if (isAIOn) {
+            inputArea.disabled = true;
+            fileBtn.disabled = true;
+            inputArea.placeholder = "Apaga la IA para enviar mensajes manuales...";
+            document.getElementById('windowAlert').style.display = 'none';
+        } else {
+            if (hoursPassed > 24) {
+                 inputArea.disabled = true;
+                 fileBtn.disabled = true;
+                 inputArea.placeholder = "Ventana 24h Vencida. Envía una plantilla.";
+                 document.getElementById('windowAlert').style.display = 'flex';
+                 if(templatesCache.length === 0) loadTemplates();
+            } else {
+                 inputArea.disabled = false;
+                 fileBtn.disabled = false;
+                 inputArea.placeholder = "Escribe un mensaje...";
+                 document.getElementById('windowAlert').style.display = 'none';
+            }
+        }
+    }
+
+    async function toggleAI() {
+        if(!activeCustomer) return;
+        const isON = document.getElementById('aiToggle').checked;
+        
+        try {
+            const res = await fetch(`/conversations/${activeCustomer.whatsapp_id}/toggle_ai`, {
+                method: 'POST',
+                headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+                body: JSON.stringify({ active: isON })
+            });
+            if (!res.ok) alert("Error cambiando estado");
+            else {
+                activeCustomer.ai_active = isON;
+                document.getElementById('aiLabel').innerText = isON ? "🤖 IA: ON" : "🧑‍💻 Manual: OFF";
+                updateInputState();
+                // Opcional: Recargar chat para ver el mensaje automático "Un agente humano..."
+                await hardReloadCustomer(activeCustomer.whatsapp_id);
+            }
+        } catch(e) { console.error(e); }
+    }
+
+    async function hardReloadCustomer(waId) {
+        // Fetch only that customer or reload all
+        await loadCustomers();
+        activeCustomer = customersDataCache.find(c => c.whatsapp_id === waId);
+        filterContext();
+    }
+
+    async function sendMessage() {
+        if(!activeCustomer) return;
+        const text = document.getElementById('chatMessage').value;
+        const file = document.getElementById('chatAttachment').files[0];
+        
+        if(!text.trim() && !file) return;
+
+        const formData = new FormData();
+        if (text) formData.append('text', text);
+        if (file) formData.append('file', file);
+
+        document.getElementById('chatMessage').disabled = true;
+        
+        try {
+            const res = await fetch(`/conversations/${activeCustomer.whatsapp_id}/send`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+                body: formData
+            });
+            
+            if(res.ok) {
+                document.getElementById('chatMessage').value = '';
+                document.getElementById('chatAttachment').value = '';
+                await hardReloadCustomer(activeCustomer.whatsapp_id);
+                setTimeout(() => {
+                    const cb = document.getElementById('contextBody');
+                    cb.scrollTop = cb.scrollHeight;
+                }, 100);
+            } else {
+                const e = await res.json();
+                alert(e.detail || "Error enviando");
+            }
+        } catch(e) { alert("Error"); }
+        finally {
+             updateInputState();
+        }
+    }
+
+    async function reactivateChat() {
+        if(!activeCustomer) return;
+        const templateId = document.getElementById('templateSelect').value;
+        if(!templateId) return alert("Selecciona una plantilla");
+
+        try {
+            const res = await fetch(`/conversations/${activeCustomer.whatsapp_id}/reactivate`, {
+                method: 'POST',
+                headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+                body: JSON.stringify({ template_id: parseInt(templateId) })
+            });
+            if(res.ok) {
+                alert("Plantilla enviada correctamente. El cliente debe responder para abrir la ventana.");
+                await hardReloadCustomer(activeCustomer.whatsapp_id);
+            } else {
+                const e = await res.json(); alert(e.detail);
+            }
+        } catch(e) { alert("Error reactivando"); }
+    }
 
     function filterContext() {
-        const filterValue = document.getElementById('contextFilter').value.toLowerCase();
         const container = document.getElementById('contextBody');
+        const textCtx = activeCustomer?.n8n_context || "";
+        
+        const dStart = document.getElementById('dateStart').value;
+        const dEnd = document.getElementById('dateEnd').value;
+        const tsStart = dStart ? new Date(dStart).setHours(0,0,0,0) : 0;
+        const tsEnd = dEnd ? new Date(dEnd).setHours(23,59,59,999) : Infinity;
 
-        if (!currentContextText) {
-            container.innerHTML = "";
+        if (!textCtx) {
+            container.innerHTML = "<div style='text-align:center;color:#999;margin-top:20px;'>No hay mensajes.</div>";
             return;
         }
 
-        const lines = currentContextText.split('\n').reverse();
-        let htmlContent = "";
+        const lines = textCtx.split('\n');
+        let html = "";
+
+        const regex = /\[(\d{2}\/\d{2}\/\d{4} \d{2}:\d{2}:\d{2})\]\s(.*)/;
 
         lines.forEach(line => {
             if (!line.trim()) return;
 
-            // 1. Format Timestamp to Bold AND DD/MM/YYYY (visual representation)
-            // Regex to find timestamps like [2024-02-10 12:00:00] OR [10/02/2024 12:00:00]
+            const match = line.match(regex);
+            if (!match) return;
 
-            // Try to detect YYYY-MM-DD
-            let formattedLine = line.replace(/\[(\d{4})-(\d{2})-(\d{2}) (\d{2}:\d{2}:\d{2})\]/, (match, y, m, d, t) => {
-                return `<b>[${d}/${m}/${y} ${t}]</b>`;
+            const [, dateStr, fullContent] = match;
+            
+            // Transform date format DD/MM/YYYY HH:mm:ss to parseable DD/MM/YYYY
+            const parts = dateStr.split(' ');
+            const dparts = parts[0].split('/');
+            const dt = new Date(`${dparts[2]}-${dparts[1]}-${dparts[0]}T${parts[1]}`);
+            const ts = dt.getTime();
+
+            if (ts < tsStart || ts > tsEnd) return;
+
+            // Determine incoming/outgoing
+            const isClient = fullContent.startsWith("Cliente");
+            const bubbleClass = isClient ? "incoming" : "outgoing";
+
+            // Extract real message (after Cliente: )
+            let messageText = fullContent.substring(fullContent.indexOf(':') + 1).trim();
+
+            // Check if there is Media
+            // [MEDIA: path]
+            let mediaHtml = "";
+            const mediaRegex = /\[MEDIA:\s*(.*?)\]/g;
+            messageText = messageText.replace(mediaRegex, (m, url) => {
+                if (url.match(/\.(jpeg|jpg|gif|png|webp)/i)) {
+                    mediaHtml += `<a href="${url}" target="_blank"><img src="${url}" class="chat-img-preview"></a>`;
+                } else if (url.match(/\.(mp4)/i)) {
+                    mediaHtml += `<video src="${url}" controls class="chat-img-preview"></video>`;
+                } else {
+                    mediaHtml += `<div><a href="${url}" target="_blank" style="text-decoration:none;">📎 Archivo Adjunto</a></div>`;
+                }
+                return ""; // remove from text
             });
 
-            // If it didn't match old format, try new format (DD/MM/YYYY)
-            if (formattedLine === line) {
-                formattedLine = line.replace(/\[(\d{2}\/\d{2}\/\d{4} \d{2}:\d{2}:\d{2})\]/, (match, date) => {
-                    return `<b>[${match.slice(1, -1)}]</b>`; // Keep content but bolt it
-                });
-            }
-
-            // 2. Check filter against the VISUAL text (formatted) key
-            // We strip HTML tags to search in pure text (e.g. "10/02/2024 12:00:00 [Cliente]: ...")
-            const textToSearch = formattedLine.replace(/<[^>]*>/g, '').toLowerCase();
-
-            if (filterValue && !textToSearch.includes(filterValue)) {
-                return; // Skip line
-            }
-
-            // Highlight filter match (optional but nice)
-            if (filterValue) {
-                const regex = new RegExp(`(${filterValue})`, 'gi');
-                // Be careful not to break HTML tags we just added. 
-                // Simple approach: apply highlight after bolding? No, messy.
-                // Let's stick to just filtering rows.
-            }
-
-            // 3. Highlight Media Links [MEDIA: /static/...]
-            // We want to turn this into <a href="..." target="_blank">📎 Ver Archivo</a>
-
-            // Regex for [MEDIA: url]
-            const mediaRegex = /\[MEDIA:\s*(.*?)\]/g;
-            htmlContent += `<div>${formattedLine.replace(mediaRegex, (match, url) => {
-                return `<a href="${url}" target="_blank" style="text-decoration:none; font-weight:bold; color: #0d6efd;">📎 Ver Archivo</a>`;
-            })}</div>`;
+            html += `
+                <div class="chat-bubble ${bubbleClass}">
+                    ${mediaHtml}
+                    <div>${messageText}</div>
+                    <span class="chat-time">${dateStr}</span>
+                </div>
+            `;
         });
 
-        if (htmlContent === "") {
-            container.innerHTML = "<div style='color:#999; text-align:center;'>No se encontraron coincidencias.</div>";
-        } else {
-            container.innerHTML = htmlContent;
+        if (!html) {
+             html = "<div style='text-align:center;color:#999;margin-top:20px;'>No hay mensajes en esta fecha.</div>";
         }
+        container.innerHTML = html;
     }
 
     function closeContextModal() {
         document.getElementById('contextModal').style.display = 'none';
+        activeCustomer = null;
     }
 
-    // Close on outside click
-    window.onclick = function (event) {
+    window.onclick = function (e) {
         const modal = document.getElementById('contextModal');
-        if (event.target == modal) {
-            closeContextModal();
-        }
+        if (e.target == modal) closeContextModal();
     }
 
     loadCustomers();
 </script>
-
-<!-- Context Modal -->
-<div id="contextModal" class="modal"
-    style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); align-items:center; justify-content:center; z-index:2000;">
-    <div
-        style="background:white; padding:20px; border-radius:8px; max-width:600px; width:90%; position:relative; max-height: 80vh; overflow-y: auto;">
-        <span onclick="closeContextModal()"
-            style="position:absolute; top:10px; right:15px; cursor:pointer; font-size:1.5rem;">&times;</span>
-        <h4>Historial de Chat (IA)</h4>
-
-        <input type="text" id="contextFilter" placeholder="Filtrar por fecha o #pedido..." class="form-control"
-            style="margin-bottom: 10px; font-size: 0.9rem;" onkeyup="filterContext()">
-
-        <div id="contextBody"
-            style="margin-top:15px; white-space: pre-wrap; background: #f4f4f4; padding: 15px; border-radius: 5px; font-family: monospace; font-size: 0.85rem; max-height: 60vh; overflow-y: auto;">
-        </div>
-        <div style="margin-top:20px; text-align: right;">
-            <button onclick="closeContextModal()" class="btn-primary">Cerrar</button>
-        </div>
-    </div>
-</div>
 {% endblock %}
