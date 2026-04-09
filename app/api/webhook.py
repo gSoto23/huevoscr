@@ -208,7 +208,10 @@ async def receive_whatsapp_message(
 
         # 4. Trigger n8n (only for incoming user messages)
         # We use BackgroundTasks to not block the webhook response to Meta (must be < 3s)
-        background_tasks.add_task(forward_to_n8n, msg_data, db)
+        if getattr(customer, "ai_active", True):
+            background_tasks.add_task(forward_to_n8n, msg_data, db)
+        else:
+            logger.info(f"AI is OFF for {wa_id}. Message saved to context but not forwarded to n8n.")
 
         return {"status": "processed"}
     

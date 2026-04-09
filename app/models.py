@@ -28,6 +28,8 @@ class Customer(Base):
     payment_method = Column(String) # e.g., 'Cash', 'Sinpe'
     is_active = Column(Boolean, default=True)
     status_changed_at = Column(DateTime, nullable=True)
+    ai_active = Column(Boolean, default=True)
+    last_customer_msg_ts = Column(DateTime, nullable=True)
     
     # Context for AI Agent
     last_message_content = Column(Text, nullable=True)

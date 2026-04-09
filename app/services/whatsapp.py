@@ -77,3 +77,41 @@ class WhatsAppService:
             except Exception as e:
                 print(f"Error fetching media URL: {e}")
                 return None
+
+    async def upload_media(self, file_bytes: bytes, mime_type: str) -> str:
+        url = f"{self.base_url}/{self.phone_id}/media"
+        headers = {
+            "Authorization": f"Bearer {self.api_token}",
+        }
+        files = {
+            "file": ("uploaded_file", file_bytes, mime_type)
+        }
+        data = {
+            "messaging_product": "whatsapp"
+        }
+        async with httpx.AsyncClient() as client:
+            response = await client.post(url, headers=headers, data=data, files=files)
+            response.raise_for_status()
+            data = response.json()
+            return data.get("id")
+
+    async def send_media(self, to: str, media_id: str, media_type: str = "image", caption: str = ""):
+        url = f"{self.base_url}/{self.phone_id}/messages"
+        headers = {
+            "Authorization": f"Bearer {self.api_token}",
+            "Content-Type": "application/json"
+        }
+        
+        payload = {
+            "messaging_product": "whatsapp",
+            "to": to,
+            "type": media_type,
+            media_type: {"id": media_id}
+        }
+        if caption and media_type in ["image", "video", "document"]:
+            payload[media_type]["caption"] = caption
+
+        async with httpx.AsyncClient() as client:
+            response = await client.post(url, headers=headers, json=payload)
+            response.raise_for_status()
+            return response.json()

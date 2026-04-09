@@ -5,6 +5,9 @@ from pydantic import BaseModel
 from datetime import datetime
 from .. import database, models, schemas, auth
 from ..core import utils
+from ..services import conversation as conversation_service
+from ..services.whatsapp import WhatsAppService
+from fastapi import UploadFile, File, Form, BackgroundTasks
 
 router = APIRouter(
     prefix="/conversations",
@@ -105,3 +108,131 @@ async def ingest_conversation(
     result = await conversation_service.process_conversation_messages(db, msgs_as_dicts)
 
     return result
+
+@router.post("/{whatsapp_id}/toggle_ai")
+async def toggle_ai(
+    whatsapp_id: str,
+    active: bool = Body(..., embed=True),
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth.get_current_active_user)
+):
+    customer = db.query(models.Customer).filter(models.Customer.whatsapp_id == whatsapp_id).first()
+    if not customer:
+        raise HTTPException(status_code=404, detail="Customer not found")
+        
+    customer.ai_active = active
+    db.commit()
+
+    # Opt: Notify customer
+    wa_service = WhatsAppService()
+    try:
+        if active:
+            msg = "🤖 El asistente inteligente ha sido reactivado."
+        else:
+            msg = "🧑‍💻 Un agente humano se ha unido al chat y te atenderá en breve."
+        await wa_service.send_message(whatsapp_id, msg)
+        
+        # Append to context
+        await conversation_service.process_conversation_messages(db, [{
+            "whatsapp_id": whatsapp_id,
+            "direction": "outgoing",
+            "content": msg,
+            "timestamp": datetime.utcnow().isoformat(),
+            "type": "text",
+            "sender": "Agente/Notificación"
+        }])
+    except Exception as e:
+        print(f"Error notifying AI Toggle: {e}")
+
+    return {"status": "success", "ai_active": active}
+
+@router.post("/{whatsapp_id}/send")
+async def send_manual_message(
+    whatsapp_id: str,
+    text: Optional[str] = Form(None),
+    file: Optional[UploadFile] = File(None),
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth.get_current_active_user)
+):
+    customer = db.query(models.Customer).filter(models.Customer.whatsapp_id == whatsapp_id).first()
+    if not customer:
+        raise HTTPException(status_code=404, detail="Customer not found")
+        
+    if getattr(customer, "ai_active", False):
+         raise HTTPException(status_code=400, detail="Cannot send manual message while AI is active.")
+         
+    # Check 24h limit
+    last_ts = getattr(customer, "last_customer_msg_ts", None)
+    if not last_ts or (datetime.utcnow() - last_ts).total_seconds() > 86400:
+         raise HTTPException(status_code=400, detail="Vencida la ventana de 24 horas. Envía un template.")
+
+    wa_service = WhatsAppService()
+    content_log = ""
+    
+    try:
+        if file:
+            file_bytes = await file.read()
+            # Upload to Meta
+            media_id = await wa_service.upload_media(file_bytes, file.content_type)
+            if not media_id:
+                raise Exception("Failed to get media_id from Meta")
+                
+            media_type = "image"
+            if "video" in file.content_type: media_type = "video"
+            elif "pdf" in file.content_type or "doc" in file.content_type: media_type = "document"
+            
+            await wa_service.send_media(whatsapp_id, media_id, media_type, caption=text or "")
+            content_log = f"[{media_type.upper()} sent]" + (f" {text}" if text else "")
+        elif text:
+            await wa_service.send_message(whatsapp_id, text)
+            content_log = text
+        else:
+            raise HTTPException(status_code=400, detail="Must provide text or file.")
+            
+        # Log to ctx
+        await conversation_service.process_conversation_messages(db, [{
+             "whatsapp_id": whatsapp_id,
+             "direction": "outgoing",
+             "content": content_log,
+             "timestamp": datetime.utcnow().isoformat(),
+             "type": "text",
+             "sender": "Agente/Tú"
+        }])
+        
+        return {"status": "success"}
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/{whatsapp_id}/reactivate")
+async def reactivate_window(
+    whatsapp_id: str,
+    template_id: int = Body(..., embed=True),
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth.get_current_active_user)
+):
+    customer = db.query(models.Customer).filter(models.Customer.whatsapp_id == whatsapp_id).first()
+    if not customer:
+        raise HTTPException(status_code=404, detail="Customer not found")
+        
+    template = db.query(models.MarketingTemplate).filter(models.MarketingTemplate.id == template_id).first()
+    if not template:
+        raise HTTPException(status_code=404, detail="Template not found")
+        
+    wa_service = WhatsAppService()
+    try:
+         await wa_service.send_template(whatsapp_id, template.name, template.language)
+         await conversation_service.process_conversation_messages(db, [{
+             "whatsapp_id": whatsapp_id,
+             "direction": "outgoing",
+             "content": f"[TEMPLATE ENVIADO: {template.name}]",
+             "timestamp": datetime.utcnow().isoformat(),
+             "type": "template",
+             "sender": "Agente/Tú"
+         }])
+         # We implicitly wait for customer reply to open the window, but we successfully sent a template.
+         return {"status": "success"}
+    except Exception as e:
+         raise HTTPException(status_code=500, detail=str(e))

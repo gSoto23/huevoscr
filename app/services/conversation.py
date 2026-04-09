@@ -103,6 +103,7 @@ async def process_conversation_messages(db: Session, messages: List[dict]):
     
     if last_incoming:
         customer.last_message_content = last_incoming.get("content") if isinstance(last_incoming, dict) else last_incoming.content
+        customer.last_customer_msg_ts = datetime.utcnow()
 
     db.add(customer)
     db.commit()
