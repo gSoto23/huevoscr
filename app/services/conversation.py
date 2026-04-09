@@ -79,6 +79,10 @@ async def process_conversation_messages(db: Session, messages: List[dict]):
                 print(f"Error downloading media: {e}")
                 content_line += f" [MEDIA: {media_url}]"
 
+        loc_pin = msg.get("location_pin") if isinstance(msg, dict) else getattr(msg, "location_pin", None)
+        if loc_pin:
+            customer.location_pin = loc_pin
+
         line = f"[{ts_str}] {sender_label}: {content_line}"
         formatted_log += line + "\n"
 
