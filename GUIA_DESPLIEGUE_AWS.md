@@ -1,90 +1,76 @@
 # Guía Definitiva de Despliegue (Para Dummys) 🚀
 
-Dado que tu código antiguo ya vive en Producción (AWS), lo único que nos separa del nivel _Enterprise_ es indicarle al servidor cómo consumir tu nueva arquitectura (S3 y PostgreSQL). Sigue estos pasos exactos uno a uno.
+Siguiendo la estrategia de mantener los costos controlados y predecibles (~$20/mes), esta guía te enseña cómo configurar toda tu infraestructura **exclusivamente dentro de AWS Lightsail**, sin lidiar con los complejos paneles de AWS tradicional (como RDS, VPCs, políticas IAM o S3).
 
 ---
 
-## 🐘 Fase 1: Crear la Base de Datos (PostgreSQL)
+## 🐘 Fase 1: Crear la Base de Datos (Lightsail Managed Database)
 
-Tienes dos opciones excelentes, y **ambas funcionan igual de bien:** un servicio externo rápido (Neon) o AWS RDS. Te recomiendo usar un proveedor _Serverless_ gratuito o súper barato para arrancar rápido y sin tocar terminales dolorosas.
+Si decides superar la base de datos local SQLite y quieres algo a nivel empresarial pero fácil, Lightsail te da PostgreSQL a un precio fijo mensual.
 
-**Opción A (Súper fácil - Neon.tech o Supabase):**
-1. Entra a [Neon.tech](https://neon.tech) o [Supabase.com](https://supabase.com) y crea una cuenta con tu GitHub/Google.
-2. Crea un **Nuevo Proyecto** y nombra tu base de datos `huevoscr_db`.
-3. ¡No tienes que hacer nada más! Busca en el Panel Principal (*Dashboard*) una sección que diga **Connection String** o **Database URL**.
-4. Copia ese código. Se verá algo como: `postgres://usuario:contraseña@servidor.neon.tech/huevoscr_db`.
-5. Guárdalo en un bloc de notas secreto.
-
-**Opción B (Todo en Amazon - AWS RDS):**
-1. En tu consola de AWS, busca **RDS**.
-2. Dale al botón naranja **Create Database** (Crear base de datos).
-3. Selecciona **PostgreSQL** y la capa *Free Tier* (Capa gratuita).
-4. Inventa un nombre de usuario (ej. `huevos_admin`) y una contraseña segura.
-5. Apaga tu Firewall ("Public Acces: Yes") y lánzala. AWS tardará 10 minutos. Una vez lista, arma tu propia URL juntando los datos de este modo: `postgres://huevos_admin:TU_PASS@el-host-que-da-aws.com:5432/el_nombre_db`.
+1. Entra a tu consola de [AWS Lightsail](https://lightsail.aws.amazon.com/).
+2. Ve a la pestaña **Databases** (Bases de Datos).
+3. Haz clic en **Create database**.
+4. Selecciona **PostgreSQL**.
+5. Elige el plan estándar de **$15 USD/mes**.
+6. Ponle un nombre para identificarla (ej. `huevoscr-db-prod`).
+7. Haz clic en **Create database**.
+8. Una vez que termine de crearse (tarda unos minutos), haz clic sobre ella y ve a la información de conexión (Connection details).
+9. AWS Lightsail te dará un Endpoint (servidor), un Username (ej. `dbmasteruser`) y un Password. Arma tu URL de conexión así: `postgres://USUARIO:CONTRASEÑA@ENDPOINT:5432/postgres` (reemplaza con los tuyos). Cópiala en tu bloc de notas secreto.
 
 ---
 
-## 🪣 Fase 2: Crear el Almacén de Imágenes (AWS S3)
+## 🪣 Fase 2: Almacenamiento de Imágenes (Disco Local SSD de Lightsail)
 
-1. En tu consola principal de AWS, busca en la barra de arriba **S3** y entra.
-2. Haz clic en **Create bucket** (Crear bucket/cubeta).
-3. Nómbralo algo único globalmente, por ejemplo: `huevoscr-imagenes-2026`.
-4. **IMPORTANTE:** Destilda (apaga) el cuadrito que dice *"Block all public access"* (Bloquear todo el acceso público). Vas a querer que cualquiera pueda ver sus recibos y que WhatsApp las cargue. Dale click al recuadro rojo de confirmación aceptando que será público.
-5. Baja al final y dale **Create bucket**. ¡Listo! Anota tu `huevoscr-imagenes-2026` en tu bloc de notas.
+¡Buenas noticias! Para ahorrar dinero y evitar configuraciones complejas con Amazon S3 y llaves IAM, usaremos el **generoso disco SSD incluido en tu servidor Lightsail**. 
 
-### Consiguiendo tus Llaves de Acceso (Llaves Maestras de Amazon)
-Para que el código hable con S3, necesita tus credenciales:
-1. En el buscador de arriba de AWS, busca **IAM** (Identity and Access Management).
-2. Ve a **Users** (Usuarios) a la izquierda y dale **Add user**. Nómbralo `app_huevoscr`.
-3. Asígnale la política `AmazonS3FullAccess` (para que controle tu S3).
-4. Dale a crear. Luego haz clic sobre tu nuevo usuario `app_huevoscr` y busca la pestaña **Security credentials**.
-5. Baja hasta **Access keys** y dale **Create access key**.
-6. **¡Detente aquí!** AWS te mostrará 2 textos aleatorios larguísimos: el `Access key ID` y el `Secret access key`. Cópialos en tu bloc de notas porque la clave secreta *no te la volverá a mostrar nunca*.
+Tu servidor web de $5/mes viene con **40 GB de disco** SSD súper rápido y **2 TB** de transferencia, lo cual es espacio y ancho de banda más que suficiente para almacenar decenas de miles de comprobantes y fotos de WhatsApp. Todo se guardará automáticamente en el servidor y tus imágenes estarán siempre ahí gracias a los Snapshots (respaldos) de Lightsail. No hay que configurar nada extra en la nube.
 
 ---
 
 ## 💻 Fase 3: Llevar el Código a tu Servidor (Lightsail)
 
-Ahora vas a jalar nuevas mejoras (S3/DB/Favicons/SEO) a tu AWS principal. 
 1. Sube desde tu computadora todo el código a tu Git / GitHub:
    ```bash
    git add .
-   git commit -m "Arquitectura hibrida S3/Postgres, Favicons, y SEO"
+   git commit -m "Arquitectura Lightsail implementada"
    git push origin main
    ```
-2. Conéctate a la terminal negra de tu servidor en Amazon (Lightsail o EC2) mediante SSH.
-3. Ve a la carpeta donde vive tu proyecto y trae los cambios frescos:
+2. Conéctate a la terminal negra de tu servidor web en Lightsail mediante SSH (botón naranja).
+3. Ve a la carpeta donde vive tu proyecto y trae los cambios frescos (asumiendo que ya lo clonaste antes):
    ```bash
-   cd /ruta/a/tu/app/huevoscr
+   cd /home/ubuntu/huevoscr
    git pull origin main
    ```
-4. **Activa tu entorno y descarga las dependencias nuevas:**
+4. **Activa tu entorno y descarga dependencias (por si acaso):**
    ```bash
    source venv/bin/activate
    pip install -r requirements.txt
    ```
-   *(Esto instalará Boto3 y el driver de PostgreSQL en tu servidor).*
+   *(Esto instalará o actualizará el driver de PostgreSQL en tu servidor).*
 
 ---
 
 ## ⚙️ Fase 4: Poner el Switch de Producción en el `.env`
 
-Aún dentro de tu servidor de AWS mediante la terminal, hay que decirle que empiece a comportarse como Producción.
+Aún dentro de tu servidor de Lightsail mediante la terminal, hay que decirle que empiece a conectarse a la Base de Datos de la Fase 1.
+
 1. Edita el archivo secreto de las variables:
    ```bash
    nano .env
    ```
-2. Al fondo del archivo, empuja/pega todos los textos de tu bloc de notas secreto:
+2. Al fondo del archivo, asegúrate de añadir tu base de datos y borrar/vaciar cualquier cosa relacionada con S3 que tuviéramos antes:
    ```ini
-   # NADA DEL WHATSAPP SE TOCA, SOLO AGREGAS ESTO ABAJO:
+   # NADA DEL WHATSAPP SE TOCA, MANTENLO IGUAL.
 
-   # Modulo Base de Datos
-   DATABASE_URL=AQUI_PEGAS_TU_URL_DE_NEON_O_RDS
+   # Modulo Base de Datos (URL de la Fase 1)
+   DATABASE_URL=postgres://USUARIO:CONTRASEÑA@EL_ENDPOINT_DE_LIGHTSAIL:5432/postgres
 
-   # Modulo Almacenamiento S3
-   AWS_BUCKET_NAME=AQUI_TU_TITULO_DEL_BUCKET
-   AWS_ACCESS_KEY_ID=AQUI_LA_LLAVE_CORTA_DE_IAM
-   AWS_SECRET_ACCESS_KEY=AQUI_LA_LLAVE_SECRETA_LARGA_DE_IAM
+   # Modulo Almacenamiento - APAGADO PARA USAR EL DISCO LOCAL
+   # Deja estos valores así o bórralos por completo:
+   AWS_BUCKET_NAME=
+   AWS_ACCESS_KEY_ID=
+   AWS_SECRET_ACCESS_KEY=
    ```
 3. Guarda (`Ctrl + O`, `Enter` y `Ctrl + X`).
 
@@ -92,11 +78,12 @@ Aún dentro de tu servidor de AWS mediante la terminal, hay que decirle que empi
 
 ## 🚀 Fase 5: Reiniciar Motores
 
-Por último, hay que reiniciar el Daemon de Linux que mantiene la aplicación viva tras bambalinas, para que absorba inmediatamente todo (Las dependencias, .env nuevo y código nuevo).
-Si seguiste la fórmula clásica de `Gunicorn + Systemd` ejecuta:
+Por último, hay que reiniciar la aplicación.
+
+Ejecuta en tu terminal:
 ```bash
-sudo systemctl restart huevoscr   # (Cámbialo por el nombre del daemon que usaste de Uvicorn)
-sudo systemctl restart nginx      # (Solo si también tocaste URLs o puertos estáticos hoy)
+sudo systemctl restart huevoscr   # (Reinicia el servicio)
+sudo systemctl restart nginx      # (Solo por si acaso)
 ```
 
-¡Eso es absolutamente todo! Tu servidor ahora leerá las claves .env y el sistema mutará en silencio, enviándote a Postgres y usando S3 mágicamente.
+¡Eso es absolutamente todo! Tu servidor ahora leerá la clave `.env` de Postgres y el sistema migrará a tu nueva base de datos dedicada. Todo el stack (Gunicorn, Nginx, PostgreSQL) vivirá en armonía dentro de la red privada, cómoda y económica de **Lightsail**.

@@ -44,7 +44,7 @@ Si el sitio se vuelve lento:
 ### Fase 2: Escalamiento Horizontal (Alto Tráfico)
 Si una sola máquina no es suficiente:
 1.  **DB Externa**: Migrar SQLite a **Lightsail Managed Database (PostgreSQL)**.
-2.  **Media Externa**: Migrar carpeta `/app/static` a **AWS S3 Bucket**.
+2.  **Media Externa**: Migrar carpeta `/app/static` a **Lightsail Object Storage (compatible con S3)**.
 3.  **Balanceo de Carga**: Crear un Load Balancer en Lightsail y lanzar múltiples copias de la aplicación.
 
 ## 4. Requisitos Previos

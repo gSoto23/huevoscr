@@ -101,22 +101,16 @@ El sistema cuenta con configuraciones dedicadas para proteger los datos en entor
 
 ---
 
-## 🚢 Despliegue en Producción (AWS)
+## 🚢 Despliegue en Producción (AWS Lightsail)
 
-Para desplegar este proyecto en un servidor AWS Lightsail o EC2, cuenta con soporte híbrido nativo:
+Para mantener los costos bajos y predecibles (~$20/mes), el proyecto está optimizado para desplegarse como una solución "Todo en Uno" en un único servidor de **AWS Lightsail**. 
 
-### Variables de Producción (Opcionales en Desarrollo)
-Para activar la **Arquitectura Híbrida Inteligente** y conectar Huevos CR a la nube, asigna estas variables en tu `.env` del servidor en vivo:
-
-- `DATABASE_URL`: Activa PostgreSQL y elimina los bloqueos de SQLite. (Ej: `postgres://usuario:admin123@host:5432/db`)
-- `AWS_ACCESS_KEY_ID`: Tu llave pública de Amazon IAM.
-- `AWS_SECRET_ACCESS_KEY`: Tu llave secreta de Amazon.
-- `AWS_BUCKET_NAME`: Al proveerlo, las fotos de tus clientes viajarán de WhatsApp directamente a este bucket S3 (ideal para almacenamiento infinito) burlando el disco duro local.
+La aplicación utiliza la base de datos local SQLite y almacenamiento en disco de manera segura. Al usar un VPS de Lightsail, aprovechas gigabytes de almacenamiento y terabytes de transferencia de datos gratuitos incluidos, evitando las tarifas complejas de componentes por separado como RDS o S3.
 
 Consulta los siguientes documentos incluidos para mayor detalle:
 
-1.  **[DEPLOYMENT_PLAN.md](DEPLOYMENT_PLAN.md)**: Estrategia de arquitectura y backups.
-2.  **[README_DEPLOY.md](README_DEPLOY.md)**: Guía paso a paso para configurar el servidor desde cero.
+1.  **[DEPLOYMENT_PLAN.md](DEPLOYMENT_PLAN.md)**: Estrategia de arquitectura y backups en Lightsail.
+2.  **[README_DEPLOY.md](README_DEPLOY.md)**: Guía paso a paso para configurar el servidor desde cero usando Nginx y Gunicorn.
 
 ---
 
