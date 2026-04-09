@@ -11,8 +11,8 @@ from .database import engine, Base
 from .api import auth, customers, config, sales, users, conversations, webhook, messaging
 from .routers import pages, marketing
 
-# Create tables
-Base.metadata.create_all(bind=engine)
+# Create tables (Moved to scripts to avoid Gunicorn worker collision)
+# Base.metadata.create_all(bind=engine)
 
 
 app = FastAPI(title="Huevos CR")
