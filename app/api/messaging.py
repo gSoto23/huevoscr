@@ -38,6 +38,15 @@ async def send_whatsapp_message(
             ]
             response = await service.send_interactive_buttons(payload.to, clean_body, buttons)
             payload.body = clean_body
+        elif "[BOTONES_PAGO]" in payload.body:
+            clean_body = payload.body.replace("[BOTONES_PAGO]", "").strip()
+            buttons = [
+                {"id": "pay_sinpe", "title": "📱 Sinpe Móvil"},
+                {"id": "pay_card", "title": "💳 Tarjeta"},
+                {"id": "pay_cash", "title": "💵 Efectivo"}
+            ]
+            response = await service.send_interactive_buttons(payload.to, clean_body, buttons)
+            payload.body = clean_body
         else:
             # 1. Send via Graph API
             response = await service.send_message(payload.to, payload.body)
