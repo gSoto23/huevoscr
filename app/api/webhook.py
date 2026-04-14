@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from .. import database, models
 from ..core import config
 from ..services import conversation as conversation_service
+from ..services import tilopay as tilopay_service
 from ..services.whatsapp import WhatsAppService
 import hashlib
 import hmac
@@ -208,6 +209,43 @@ async def receive_whatsapp_message(
                          content = f"[BOTÓN CLICK: {btn_title}]\n[SYSTEM INSTRUCTION: El cliente acaba de confirmar su pedido mediante botón. Debes ejecutar de inmediato la creación de orden llamando a HTTP Request Crear Orden y confírmale al cliente.]"
                     elif btn_id == "confirm_order_no":
                          content = f"[BOTÓN CLICK: {btn_title}]\n[SYSTEM INSTRUCTION: El cliente rechazó confirmar su pedido mediante botón. Pídele amablemente que te indique qué desea modificar.]"
+                    elif btn_id == "pay_card":
+                        # Process Tilopay link generation
+                        last_order = db.query(models.Order).filter(models.Order.customer_id == wa_id).order_by(models.Order.id.desc()).first()
+                        if last_order:
+                            last_order.payment_method = "Tarjeta"
+                            db.commit()
+                            try:
+                                link_url = await tilopay_service.generate_payment_link_for_order(last_order)
+                                background_tasks.add_task(
+                                    wa_service.send_message,
+                                    wa_id,
+                                    f"¡Excelente elección! Puedes realizar tu pago seguro con tarjeta aquí: {link_url}"
+                                )
+                                content = f"[BOTÓN CLICK: {btn_title}]\n[SYSTEM INSTRUCTION: El sistema HA GENERADO AUTOMÁTICAMENTE el link de pago y se lo ha enviado al cliente. Confírmale al cliente que proceda al pago mediante el link y que aguardas notificación automática.]"
+                            except Exception as e:
+                                logger.error(f"Tilopay link generation error: {e}")
+                                content = f"[BOTÓN CLICK: {btn_title}]\n[SYSTEM INSTRUCTION: Ocurrió un error interno generando el link de pago. Por favor indícale al cliente que intente otro método de pago o pida ayuda a gerencia.]"
+                        else:
+                            content = f"[BOTÓN CLICK: {btn_title}]\n[SYSTEM INSTRUCTION: El sistema intentó generar un link de pago pero no encontró ninguna orden. Pregúntale al cliente si aún desea realizar el pedido.]"
+
+                    elif btn_id == "pay_sinpe":
+                        last_order = db.query(models.Order).filter(models.Order.customer_id == wa_id).order_by(models.Order.id.desc()).first()
+                        if last_order:
+                            last_order.payment_method = "Sinpe Movil"
+                            if customer:
+                                customer.pending_receipt_for_order_id = last_order.id
+                                from datetime import datetime
+                                customer.pending_receipt_ts = datetime.utcnow()
+                            db.commit()
+                        content = f"[BOTÓN CLICK: {btn_title}]\n[SYSTEM INSTRUCTION: El cliente eligió Pagar por SINPE MÓVIL. El sistema ya preparó la orden para recibir comprobantes. Indícale el número de SINPE de la empresa (ej: 8888-8888 a nombre de Huevos CR o Carlos Perez) y pídele que envíe una captura del comprobante.]"
+                        
+                    elif btn_id == "pay_cash":
+                        last_order = db.query(models.Order).filter(models.Order.customer_id == wa_id).order_by(models.Order.id.desc()).first()
+                        if last_order:
+                            last_order.payment_method = "Efectivo"
+                            db.commit()
+                        content = f"[BOTÓN CLICK: {btn_title}]\n[SYSTEM INSTRUCTION: El cliente eligió Pagar en EFECTIVO. Agradécele su elección e infórmale que pagará contra entrega.]"
                     else:
                         content = f"[BOTÓN CLICK: {btn_title}]"
                 else:
@@ -294,6 +332,14 @@ async def n8n_proxy_send(
                 {"id": "confirm_order_no", "title": "❌ Modificar pedido"}
             ]
             await wa_service.send_interactive_buttons(to, clean_text, buttons)
+        elif "[BOTONES_PAGO]" in body:
+            clean_text = body.replace("[BOTONES_PAGO]", "").strip()
+            buttons = [
+                {"id": "pay_sinpe", "title": "📱 Sinpe Móvil"},
+                {"id": "pay_card", "title": "💳 Tarjeta"},
+                {"id": "pay_cash", "title": "💵 Efectivo"}
+            ]
+            await wa_service.send_interactive_buttons(to, clean_text, buttons)
         else:
             await wa_service.send_message(to, body)
             
@@ -302,3 +348,59 @@ async def n8n_proxy_send(
         import traceback
         logger.error(f"n8n proxy error: {str(e)}", exc_info=True)
         return {"status": "error", "detail": str(e)}
+
+@router.post("/tilopay")
+async def tilopay_webhook_callback(request: Request, db: Session = Depends(database.get_db)):
+    """
+    Recibe notificaciones de éxito de pago desde Tilopay (Webhook).
+    Tilopay llamará aquí cuando se complete un pago.
+    """
+    try:
+        payload = await request.json()
+        logger.info(f"TILOPAY WEBHOOK PAYLOAD: {json.dumps(payload)}")
+        
+        # Intentaremos extraer la 'reference' (ej. ORD-123)
+        reference = payload.get("reference") or payload.get("Order") or str(payload)
+        
+        if "ORD-" in str(reference):
+            try:
+                # Extraemos el numero de la orden de "ORD-123"
+                parts = str(reference).split("-")
+                for p in parts:
+                    if p.isdigit():
+                        order_id = int(p)
+                        order = db.query(models.Order).filter(models.Order.id == order_id).first()
+                        if order:
+                            order.status = "paid"
+                            order.payment_method = "Tilopay"
+                            db.commit()
+                            
+                            # Enviar mensaje de WhatsApp al cliente agradeciendo
+                            customer = order.customer
+                            if customer:
+                                wa_service = WhatsAppService()
+                                
+                                # Format total correctly, accounting for potential None or non-float values gracefully
+                                total_fmt = f"{float(order.total_amount):,.2f}" if order.total_amount else "0.00"
+                                
+                                resumen_msg = (
+                                    f"✅ *¡Pago Confirmado!*\n\n"
+                                    f"Hemos recibido tu pago exitosamente para la orden #{order.id}.\n\n"
+                                    f"📦 *Resumen de tu pedido:*\n"
+                                    f"• Cantidad: {order.quantity} cartón(es)\n"
+                                    f"• Entrega programada: {order.delivery_day or 'Por definir'}\n"
+                                    f"• Total pagado: ₡{total_fmt}\n\n"
+                                    f"¡Gracias por elegir HuevosCR!"
+                                )
+                                await wa_service.send_message(customer.whatsapp_id, resumen_msg)
+                                
+                            logger.info(f"Tilopay Webhook: Orden #{order.id} pagada exitosamente.")
+                        break
+            except Exception as inner_e:
+                logger.error(f"Error procesando order reference en Tilopay webhook: {inner_e}")
+                
+        return {"status": "ok"}
+    except Exception as e:
+        logger.error(f"Error procesando Tilopay webhook json: {e}")
+        return {"status": "error"}
+

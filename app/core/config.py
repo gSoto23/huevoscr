@@ -25,6 +25,10 @@ class Settings:
     WHATSAPP_ACCOUNT_ID: str = os.getenv("WHATSAPP_ACCOUNT_ID")
     
     # n8n
-    N8N_WEBHOOK_URL: str = os.getenv("N8N_WEBHOOK_URL")
+    # Tilopay
+    TILOPAY_API_USER: str = os.getenv("TILOPAY_API_USER")
+    TILOPAY_API_PASSWORD: str = os.getenv("TILOPAY_API_PASSWORD")
+    TILOPAY_KEY: str = os.getenv("TILOPAY_KEY")
+    APP_BASE_URL: str = os.getenv("APP_BASE_URL", "https://admin.huevoscr.com") # Usado para el webhook
 
 settings = Settings()
