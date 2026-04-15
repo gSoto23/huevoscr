@@ -299,12 +299,24 @@ async def receive_whatsapp_message(
                     logger.info(f"Receipt fallback: no pending_receipt_for_order_id, using latest Sinpe order #{order_id_to_use}")
 
             if order_id_to_use:
-                # Stage the receipt image on the customer record
-                customer.pending_receipt_media_id = media_url
-                customer.pending_receipt_for_order_id = order_id_to_use
-                from datetime import datetime
-                customer.pending_receipt_ts = datetime.utcnow()
-                db.commit()
+                # --- Auto-confirm receipt directly in Python ---
+                target_order = db.query(models.Order).filter(models.Order.id == order_id_to_use).first()
+                if target_order:
+                    target_order.receipt_media_id = media_url
+                    target_order.has_attachment = True
+                    target_order.status = "payment_pending_validation"
+                    customer.pending_receipt_media_id = None
+                    customer.pending_receipt_for_order_id = None
+                    customer.pending_receipt_ts = None
+                    db.commit()
+                    logger.info(f"Receipt auto-confirmed for Order #{order_id_to_use}")
+
+                    # Send a thank-you message directly via WhatsApp (skip n8n for this)
+                    background_tasks.add_task(
+                        wa_service.send_message,
+                        wa_id,
+                        f"¡Gracias, {name.split()[0] if name else 'cliente'}! 🙏 Hemos recibido tu comprobante de pago para el Pedido #{order_id_to_use}. Lo validaremos en breve y te avisaremos cuando esté todo listo. ¡Pura vida! 🥚"
+                    )
 
                 is_receipt_candidate = True
                 pending_order_id = order_id_to_use
@@ -315,8 +327,10 @@ async def receive_whatsapp_message(
         msg_data["pending_order_id"] = pending_order_id
 
         # 4. Trigger n8n (only for incoming user messages)
-        # We use BackgroundTasks to not block the webhook response to Meta (must be < 3s)
-        if getattr(customer, "ai_active", True):
+        # Skip n8n for receipt images — already handled above with direct reply
+        if is_receipt_candidate:
+            logger.info(f"Skipping n8n for receipt image (Order #{pending_order_id})")
+        elif getattr(customer, "ai_active", True):
             background_tasks.add_task(forward_to_n8n, msg_data, db)
         else:
             logger.info(f"AI is OFF for {wa_id}. Message saved to context but not forwarded to n8n.")
