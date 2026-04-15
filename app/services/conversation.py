@@ -1,8 +1,11 @@
 from sqlalchemy.orm import Session
 from datetime import datetime
 from typing import List, Optional
+import logging
 from .. import models
 from ..core import utils
+
+logger = logging.getLogger(__name__)
 
 async def process_conversation_messages(db: Session, messages: List[dict]):
     """
@@ -81,7 +84,7 @@ async def process_conversation_messages(db: Session, messages: List[dict]):
                     # Already processed (local path or S3 URL), use as-is
                     content_line += f" [MEDIA: {media_url}]"
             except Exception as e:
-                print(f"Error downloading media: {e}")
+                logger.error(f"Error downloading media: {e}")
                 content_line += f" [MEDIA: {media_url}]"
 
         loc_pin = msg.get("location_pin") if isinstance(msg, dict) else getattr(msg, "location_pin", None)

@@ -8,6 +8,9 @@ from ..core import utils
 from ..services import conversation as conversation_service
 from ..services.whatsapp import WhatsAppService
 from fastapi import UploadFile, File, Form, BackgroundTasks
+import logging
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(
     prefix="/conversations",
@@ -142,7 +145,7 @@ async def toggle_ai(
             "sender": "Agente/Notificación"
         }])
     except Exception as e:
-        print(f"Error notifying AI Toggle: {e}")
+        logger.error(f"Error notifying AI Toggle: {e}", exc_info=True)
 
     return {"status": "success", "ai_active": active}
 
@@ -239,7 +242,7 @@ async def send_manual_message(
 
     except Exception as e:
         import traceback
-        traceback.print_exc()
+        logger.error(f"Error sending manual message: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/{whatsapp_id}/reactivate")

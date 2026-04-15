@@ -16,6 +16,10 @@ app/static/receipts/*
 !app/static/receipts/.gitkeep
 app/static/logs/media/*
 !app/static/logs/media/.gitkeep
+app/static/whatsapp_media/*
+!app/static/whatsapp_media/.gitkeep
+app/static/admin_media/*
+!app/static/admin_media/.gitkeep
 tunnel.log
 
 # IDEs and OS

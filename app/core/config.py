@@ -30,5 +30,12 @@ class Settings:
     TILOPAY_API_PASSWORD: str = os.getenv("TILOPAY_API_PASSWORD")
     TILOPAY_KEY: str = os.getenv("TILOPAY_KEY")
     APP_BASE_URL: str = os.getenv("APP_BASE_URL", "https://admin.huevoscr.com") # Usado para el webhook
+    
+    # SendGrid / SMTP config
+    SMTP_SERVER: str = os.getenv("SMTP_SERVER", "smtp.gmail.com")
+    SMTP_PORT: int = int(os.getenv("SMTP_PORT", 587))
+    SMTP_USER: str = os.getenv("SMTP_USER", "")
+    SMTP_PASSWORD: str = os.getenv("SMTP_PASSWORD", "")
+    SMTP_SENDER: str = os.getenv("SMTP_SENDER", "hola@huevoscr.com")
 
 settings = Settings()

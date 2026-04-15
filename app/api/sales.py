@@ -4,6 +4,9 @@ from typing import List
 from .. import database, models, schemas, auth
 from ..core import utils
 from datetime import datetime
+import logging
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(
     prefix="/sales",
@@ -51,7 +54,7 @@ def create_sale(
                         dt = datetime.strptime(d_val, "%Y-%m-%d")
                         sale_data["delivery_date"] = dt
                     except ValueError:
-                         print(f"WARNING: Invalid delivery_date format: {d_val}. Ignoring.", flush=True)
+                         logger.warning(f"Invalid delivery_date format: {d_val}. Ignoring.")
                          del sale_data["delivery_date"]
             # If it's already datetime/date, leave it.
         else:
@@ -96,9 +99,9 @@ def create_sale(
             customer.pending_receipt_ts = datetime.utcnow()
             db.add(customer) # Mark modified
             db.commit()
-            print(f"DEBUG: Customer {customer.whatsapp_id} flagged for receipt on Order #{db_order.id}", flush=True)
+            logger.debug(f"Customer {customer.whatsapp_id} flagged for receipt on Order #{db_order.id}")
     except Exception as e:
-        print(f"ERROR: Failed to flag customer for receipt: {str(e)}", flush=True)
+        logger.error(f"Failed to flag customer for receipt: {str(e)}", exc_info=True)
         # We generally don't want to crash the order creation just because this failed.
         # But we should alert someone.
         db.rollback() 

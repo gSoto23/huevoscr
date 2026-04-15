@@ -60,7 +60,7 @@ async def generate_payment_link_for_order(order) -> str:
         "type": 0,
         "description": f"Pago de Orden #{order.id} - HuevosCR",
         "client": order.customer.name if order.customer else "Cliente HuevosCR",
-        "callback_url": f"{config.settings.APP_BASE_URL.rstrip('/')}",
+        "callback_url": f"https://www.huevoscr.com/gracias?order_id={order.id}",
         "webhook_url": webhook_url
     }
     

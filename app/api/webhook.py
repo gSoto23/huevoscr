@@ -5,6 +5,7 @@ from ..core import config
 from ..services import conversation as conversation_service
 from ..services import tilopay as tilopay_service
 from ..services.whatsapp import WhatsAppService
+from ..services.email import send_payment_receipt_email
 import hashlib
 import hmac
 import httpx
@@ -391,7 +392,11 @@ async def n8n_proxy_send(
         return {"status": "error", "detail": str(e)}
 
 @router.post("/tilopay")
-async def tilopay_webhook_callback(request: Request, db: Session = Depends(database.get_db)):
+async def tilopay_webhook_callback(
+    request: Request, 
+    background_tasks: BackgroundTasks, 
+    db: Session = Depends(database.get_db)
+):
     """
     Recibe notificaciones de éxito de pago desde Tilopay (Webhook).
     Tilopay llamará aquí cuando se complete un pago.
@@ -434,6 +439,13 @@ async def tilopay_webhook_callback(request: Request, db: Session = Depends(datab
                                     f"¡Gracias por elegir HuevosCR!"
                                 )
                                 await wa_service.send_message(customer.whatsapp_id, resumen_msg)
+                                
+                                # Extraer correo de DB o de Tilopay (variantes comunes)
+                                tilopay_email = payload.get("email") or payload.get("customerEmail") or payload.get("customer_email")
+                                target_email = customer.email if customer.email else tilopay_email
+                                
+                                if target_email:
+                                    background_tasks.add_task(send_payment_receipt_email, order, target_email)
                                 
                             logger.info(f"Tilopay Webhook: Orden #{order.id} pagada exitosamente.")
                         break

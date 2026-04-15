@@ -1,10 +1,18 @@
-from fastapi import APIRouter, Request, Depends
+from fastapi import APIRouter, Request, Depends, HTTPException
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse
-from .. import auth
+from sqlalchemy.orm import Session
+from .. import auth, models, database
 
-router = APIRouter(include_in_schema=False)
+router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
+
+@router.get("/gracias", response_class=HTMLResponse)
+async def payment_success(request: Request, order_id: int, db: Session = Depends(database.get_db)):
+    order = db.query(models.Order).filter(models.Order.id == order_id).first()
+    if not order:
+        raise HTTPException(status_code=404, detail="Orden no encontrada")
+    return templates.TemplateResponse("gracias.html", {"request": request, "order": order})
 
 @router.get("/login", response_class=HTMLResponse)
 async def login_page(request: Request):

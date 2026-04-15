@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pago Exitoso - Huevos CR</title>
+
+    <!-- Favicons -->
+    <link rel="apple-touch-icon" sizes="57x57" href="/static/images/fav.ico/apple-icon-57x57.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="/static/images/fav.ico/favicon-32x32.png">
+    <link rel="stylesheet" href="/static/css/style.css">
+    
+    <!-- Font Awesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@300;400;600&display=swap" rel="stylesheet">
+    
+    <style>
+        .success-card {
+            background-color: #ffffff;
+            border-radius: 12px;
+            padding: 40px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            max-width: 600px;
+            margin: 40px auto;
+            text-align: center;
+        }
+        .success-icon {
+            font-size: 60px;
+            color: #27ae60;
+            margin-bottom: 20px;
+        }
+        .success-card h1 {
+            color: var(--color-orange);
+            margin-bottom: 10px;
+        }
+        .order-details {
+            text-align: left;
+            margin-top: 30px;
+            border-top: 2px solid #eee;
+            padding-top: 20px;
+        }
+        .order-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 15px;
+            font-size: 1.1rem;
+        }
+        .order-row.total {
+            font-weight: 600;
+            font-size: 1.3rem;
+            color: var(--color-orange);
+            background-color: #fff9f2;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <div class="container header-container">
+            <div class="logo">
+                <a href="/" style="text-decoration: none; color: inherit;">
+                    <img src="/static/images/logo.png" alt="Huevos CR" style="height: 50px; vertical-align: middle;">
+                </a>
+            </div>
+            <nav>
+                <a href="/" class="btn-secondary">Volver al Inicio</a>
+            </nav>
+        </div>
+    </header>
+
+    <main style="background-color: #f9f9f9; padding: 20px 0; min-height: 80vh;">
+        <div class="container">
+            <div class="success-card">
+                <i class="fa-solid fa-circle-check success-icon"></i>
+                <h1>¡Pago Confirmado!</h1>
+                <p>Muchas gracias por tu compra. Hemos recibido tu pago exitosamente.</p>
+                <p>Te hemos enviado la confirmación a tu WhatsApp y Correo Electrónico.</p>
+                
+                <div class="order-details">
+                    <h3 style="margin-bottom: 20px; color: #333;">Resumen de la Orden</h3>
+                    
+                    <div class="order-row">
+                        <span><strong>Número de Orden:</strong></span>
+                        <span>#{{ order.id }}</span>
+                    </div>
+                    
+                    <div class="order-row">
+                        <span><strong>Cantidad:</strong></span>
+                        <span>{{ order.quantity }} cartón(es)</span>
+                    </div>
+                    
+                    <div class="order-row">
+                        <span><strong>Entrega programada:</strong></span>
+                        <span>{{ order.delivery_day or 'Por definir' }}</span>
+                    </div>
+                    
+                    <div class="order-row">
+                        <span><strong>Método de pago:</strong></span>
+                        <span>{{ order.payment_method or 'Electrónico' }}</span>
+                    </div>
+                    
+                    <div class="order-row total">
+                        <span>Total Pagado:</span>
+                        <span>₡{{ "%.2f"|format(order.total_amount) if order.total_amount else "0.00" }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer style="background-color: var(--color-yellow); padding: 20px; text-align: center; border-top: 2px solid #000;">
+        <p style="font-weight: bold; margin:0;">Huevos CR &copy; 2026</p>
+    </footer>
+</body>
+</html>
