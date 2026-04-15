@@ -282,21 +282,25 @@ async def receive_whatsapp_message(
             # Primary check: explicit pending receipt flag (set when customer clicks Sinpe button)
             order_id_to_use = customer.pending_receipt_for_order_id
 
-            # Fallback: if no flag set, look for the most recent Pendiente order with Sinpe/Transferencia payment
+            # Fallback: if no flag set, look for the most recent Pendiente order (ANY payment method).
+            # This covers cases where customer switches Tarjeta→Sinpe via text (n8n says "updated"
+            # but doesn't actually call our API, so payment_method stays "Tarjeta" in DB).
             if not order_id_to_use:
                 fallback_order = (
                     db.query(models.Order)
                     .filter(
                         models.Order.customer_id == wa_id,
                         models.Order.status == "Pendiente",
-                        models.Order.payment_method.in_(["Sinpe", "Sinpe Movil", "Sinpe Móvil", "Transferencia"])
                     )
                     .order_by(models.Order.id.desc())
                     .first()
                 )
                 if fallback_order:
                     order_id_to_use = fallback_order.id
-                    logger.info(f"Receipt fallback: no pending_receipt_for_order_id, using latest Sinpe order #{order_id_to_use}")
+                    # Also update payment_method to Sinpe since customer is sending a receipt
+                    fallback_order.payment_method = "Sinpe Movil"
+                    db.commit()
+                    logger.info(f"Receipt fallback: using latest Pendiente order #{order_id_to_use}, updated payment_method to Sinpe Movil")
 
             if order_id_to_use:
                 # --- Auto-confirm receipt directly in Python ---
