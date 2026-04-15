@@ -73,8 +73,13 @@ async def process_conversation_messages(db: Session, messages: List[dict]):
         # Handle Media
         if media_url:
             try:
-                local_path = await utils.download_whatsapp_image(media_url, folder="logs/media")
-                content_line += f" [MEDIA: {local_path}]"
+                # Only re-download if it's a raw WhatsApp CDN URL (not already local or S3)
+                if str(media_url).startswith("http") and ("fbsbx.com" in str(media_url) or "whatsapp.net" in str(media_url)):
+                    local_path = await utils.download_whatsapp_image(media_url, folder="logs/media")
+                    content_line += f" [MEDIA: {local_path}]"
+                else:
+                    # Already processed (local path or S3 URL), use as-is
+                    content_line += f" [MEDIA: {media_url}]"
             except Exception as e:
                 print(f"Error downloading media: {e}")
                 content_line += f" [MEDIA: {media_url}]"
