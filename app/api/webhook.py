@@ -292,7 +292,7 @@ async def receive_whatsapp_message(
                     db.query(models.Order)
                     .filter(
                         models.Order.customer_id == wa_id,
-                        models.Order.status == "Pendiente",
+                        models.Order.status == "pending", # EN LA DB SE GUARDA EN MINÚSCULA
                     )
                     .order_by(models.Order.id.desc())
                     .first()
