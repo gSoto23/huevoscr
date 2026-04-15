@@ -278,7 +278,7 @@ async def receive_whatsapp_message(
         is_receipt_candidate = False
         pending_order_id = None
         
-        logger.info(f"EVALUATING RECEIPT LOGIC -> msg_type: {msg_type}, media_url: {media_url}, customer_found: {customer is not None}")
+        logger.warning(f"!!! DEBUG RECEIPT !!! msg_type: {msg_type}, media_url: {media_url}, wa_id: {wa_id}")
 
         if customer and media_url:
             # Primary check: explicit pending receipt flag (set when customer clicks Sinpe button)
