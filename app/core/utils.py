@@ -12,12 +12,17 @@ async def download_whatsapp_image(media_url: str, folder: str = "receipts") -> s
     """
     Downloads media from a WhatsApp URL using the WHATSAPP_TOKEN.
     Saves it to app/static/{folder} and returns the local relative path.
-    If download fails, returns the original URL.
+    If download fails, returns None.
     """
+    # Guard: reject None or invalid URLs immediately
+    if not media_url or not str(media_url).startswith("http"):
+        logger.warning(f"download_whatsapp_image called with invalid URL: {repr(media_url)}")
+        return None
+
     token = os.getenv("WHATSAPP_TOKEN")
     if not token:
         logger.warning("WHATSAPP_TOKEN not set. Skipping download.")
-        return media_url
+        return None
 
     try:
         # Create directory if not exists
@@ -70,8 +75,8 @@ async def download_whatsapp_image(media_url: str, folder: str = "receipts") -> s
                     return f"/static/{folder}/{filename}"
             else:
                 logger.error(f"Failed to download media. Status: {response.status_code}, URL: {media_url}")
-                return media_url
+                return None
 
     except Exception as e:
         logger.error(f"Error downloading WhatsApp media: {str(e)}", exc_info=True)
-        return media_url
+        return None

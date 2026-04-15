@@ -1,7 +1,10 @@
 import httpx
 import os
 import json
+import logging
 from ..core import config  # Assuming you might have a config module, otherwise os.getenv
+
+logger = logging.getLogger(__name__)
 
 class WhatsAppService:
     def __init__(self):
@@ -73,9 +76,12 @@ class WhatsAppService:
                 response = await client.get(url, headers=headers)
                 response.raise_for_status()
                 data = response.json()
-                return data.get("url")
+                media_url = data.get("url")
+                if not media_url:
+                    logger.error(f"get_media_url: API returned no URL for media_id={media_id}. Response: {data}")
+                return media_url
             except Exception as e:
-                print(f"Error fetching media URL: {e}")
+                logger.error(f"get_media_url error for media_id={media_id}: {e}", exc_info=True)
                 return None
 
     async def upload_media(self, file_bytes: bytes, mime_type: str) -> str:
