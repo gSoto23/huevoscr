@@ -54,7 +54,7 @@ async def generate_payment_link_for_order(order) -> str:
     
     link_payload = {
         "key": config.settings.TILOPAY_KEY,
-        "amount": str(float(order.total_amount or 0)),
+        "amount": f"{float(order.total_amount or 0):.2f}",
         "currency": "CRC", # O la moneda pertinente
         "reference": f"ORD-{order.id}",
         "type": 0,
