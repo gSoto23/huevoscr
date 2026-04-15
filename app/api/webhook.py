@@ -278,16 +278,37 @@ async def receive_whatsapp_message(
         is_receipt_candidate = False
         pending_order_id = None
         
-        if customer and customer.pending_receipt_for_order_id and media_url:
-            # It's a match! Stage it.
-            customer.pending_receipt_media_id = media_url
-            from datetime import datetime
-            customer.pending_receipt_ts = datetime.utcnow()
-            db.commit()
-            
-            is_receipt_candidate = True
-            pending_order_id = customer.pending_receipt_for_order_id
-            logger.info(f"Receipt Candidate Detected for Order {pending_order_id}")
+        if customer and media_url:
+            # Primary check: explicit pending receipt flag (set when customer clicks Sinpe button)
+            order_id_to_use = customer.pending_receipt_for_order_id
+
+            # Fallback: if no flag set, look for the most recent Pendiente order with Sinpe/Transferencia payment
+            if not order_id_to_use:
+                fallback_order = (
+                    db.query(models.Order)
+                    .filter(
+                        models.Order.customer_id == wa_id,
+                        models.Order.status == "Pendiente",
+                        models.Order.payment_method.in_(["Sinpe", "Sinpe Movil", "Sinpe Móvil", "Transferencia"])
+                    )
+                    .order_by(models.Order.id.desc())
+                    .first()
+                )
+                if fallback_order:
+                    order_id_to_use = fallback_order.id
+                    logger.info(f"Receipt fallback: no pending_receipt_for_order_id, using latest Sinpe order #{order_id_to_use}")
+
+            if order_id_to_use:
+                # Stage the receipt image on the customer record
+                customer.pending_receipt_media_id = media_url
+                customer.pending_receipt_for_order_id = order_id_to_use
+                from datetime import datetime
+                customer.pending_receipt_ts = datetime.utcnow()
+                db.commit()
+
+                is_receipt_candidate = True
+                pending_order_id = order_id_to_use
+                logger.info(f"Receipt Candidate Detected for Order {pending_order_id}")
 
         # Add flags to msg_data for n8n
         msg_data["is_receipt_candidate"] = is_receipt_candidate
